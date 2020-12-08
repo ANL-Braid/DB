@@ -3,7 +3,7 @@
 
 Braid provenance system
 
-== Goals
+== System goals
 
 * Embrace automation in data analysis, retention, decision-making
 * Enable users to trace back to how decisions were made
@@ -28,3 +28,34 @@ image::block-diagram.png[]
 
 == Use cases
 
+=== SLAC workflow
+
+==== Goals
+
+. Perform data reduction at the edge
+. Train models on specific characteristics of experiment-specific data
+
+==== Workflow
+
+. Scientist configures experiment parameters
+. Workflow launches simulations with experiment parameters
+. Complete simulations by time experiment data collection is complete
+. Train model on simulation and experiment data
+. Run model on an FPGA to perform data reduction in production
+
+==== Provenance records
+
+* Everything has typical metadata like timestamps
+* Records can be updated
+** Not immutable history like most provenance data
+** Old versions can be recovered and used
+
+. Experimental configurations (independent?)
+. Experiment outputs
+. Other simulation inputs?
+.. Software version, configuration?
+. Simulation outputs
+. Training data ingest
+. Inference outputs (statements)
+.. Could be in the form of tests
+.. Like a super-Jenkins
