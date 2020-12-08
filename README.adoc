@@ -18,9 +18,9 @@ Braid provenance system
 
 :imagesdir: https://github.com/ANL-Braid/DB/raw/main/img
 
-image::conceptual_architecture.jpg[]
+image::conceptual-architecture.png[]
 
-image::block_diagram.jpg[]
+image::block-diagram.png[]
 
 == Use cases
 
