@@ -17,12 +17,12 @@ Braid provenance system
 == Architecture
 
 ifdef::env-github[]
-:imagesdir: https://github.com/ANL-Braid/DB/raw/main
+:imagesdir: https://github.com/ANL-Braid/DB/raw/main/img
 endif::[]
 
-image::img/conceptual-architecture.jpg[]
+image::conceptual-architecture.jpg[]
 
-image::img/block-diagram.jpg[]
+image::block-diagram.jpg[]
 
 
 
