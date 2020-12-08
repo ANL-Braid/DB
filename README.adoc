@@ -45,12 +45,14 @@ image::block-diagram.png[]
 
 ==== Provenance records
 
+===== Notes
+
 * Everything has typical metadata like timestamps
 * Records can be updated
 ** Not immutable history like most provenance data
 ** Old versions can be recovered and used
 
-//-
+===== Records
 
 . Experimental configurations (independent?)
 . Experiment outputs
