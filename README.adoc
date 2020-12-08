@@ -18,7 +18,11 @@ Braid provenance system
 
 :imagesdir: https://github.com/ANL-Braid/DB/raw/main/img
 
+=== Conceptual architecture
+
 image::conceptual-architecture.png[]
+
+=== Software block diagram
 
 image::block-diagram.png[]
 
