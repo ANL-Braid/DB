@@ -24,7 +24,9 @@ image::conceptual-architecture.jpg[]
 
 image::block-diagram.jpg[]
 
-v2
+image::logo.jpg[]
+
+v3
 
 
 == Use cases
