@@ -16,8 +16,10 @@ Braid provenance system
 
 == Architecture
 
+image::img/conceptual-architecture.jpg[]
+
 image::img/block-diagram.jpg[]
-image::sunset.jpg[]
+
 
 
 == Use cases
