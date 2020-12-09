@@ -4,10 +4,18 @@ set -eu
 THIS=$( readlink --canonicalize $( dirname $0 ) )
 BRAID=$( readlink --canonicalize $THIS/.. )
 
-set -x
+echo
+echo "TEST-ALL ..."
 
-pwd
+(
+  set -x
 
-cd $BRAID/test
+  pwd
 
-./test.sh test-0.py
+  cd $BRAID/test
+
+  ./test.sh test-0.py
+)
+
+echo "TEST-ALL: OK."
+echo
