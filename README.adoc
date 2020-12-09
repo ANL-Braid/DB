@@ -63,3 +63,9 @@ image::block-diagram.png[]
 . Inference outputs (statements)
 .. Could be in the form of tests
 .. Like a super-Jenkins
+
+== Tests
+
+Tests are in the test/ directory.
+
+Tests are run nightly at https://jenkins-ci.cels.anl.gov/job/Braid-DB
