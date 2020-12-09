@@ -1,5 +1,6 @@
 
 import datetime
+import os
 
 from db_tools import BraidSQL
 
@@ -18,18 +19,21 @@ class BraidDB:
     def __init__(self):
         pass
 
-    def create(self, braid_sql):
+    def create(self):
         ''' Set up the tables defined in the SQL file '''
+        BRAID_HOME = os.getenv("BRAID_HOME")
+        if BRAID_HOME == None:
+            raise Exception("Set environment variable BRAID_HOME!")
         print("creating tables: ")
         global DB
         DB.connect()
+        braid_sql = BRAID_HOME + "/src/braid-db.sql"
         with open(braid_sql) as fp:
             sqlcode = fp.read()
             DB.executescript(sqlcode)
             DB.commit()
 
     def insert(self, record):
-
         pass
 
 serial = 1

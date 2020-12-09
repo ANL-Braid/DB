@@ -2,9 +2,9 @@
 # TEST 1
 # Just initialize the DB
 
-import braid_db
+from braid_db import *
 
-braid_db.setup_db("braid.db")
+setup_db("braid.db")
 
 db = BraidDB()
-db.create("braid-db.sql")
+db.create()
