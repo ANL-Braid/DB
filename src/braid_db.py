@@ -1,12 +1,34 @@
 
 import datetime
 
+from db_tools import BraidSQL
+
+def setup_db(db_file):
+    '''
+    Convenience function to use from workflow
+    '''
+    if 'DB' not in globals():
+        print('Connecting to DB...')
+        global DB
+        DB = BraidSQL(db_file)
+    return DB
+
 class BraidDB:
 
-    def create():
+    def __init__(self):
         pass
 
-    def insert():
+    def create(self, braid_sql):
+        ''' Set up the tables defined in the SQL file '''
+        print("creating tables: ")
+        global DB
+        DB.connect()
+        with open(braid_sql) as fp:
+            sqlcode = fp.read()
+            DB.executescript(sqlcode)
+            DB.commit()
+
+    def insert(self, record):
 
         pass
 
