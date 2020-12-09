@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-THIS=$( readlink --canonicalize $( dirname $0 ) )
+THIS=$(  readlink --canonicalize $( dirname $0 ) )
 BRAID=$( readlink --canonicalize $THIS/.. )
 
 echo
