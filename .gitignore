@@ -1,1 +1,3 @@
 *.pyc
+# SQLite databases:
+*.db
