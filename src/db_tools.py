@@ -8,6 +8,7 @@ class BraidSQL:
 
     def __init__(self, db_file, log=False):
         self.db_file   = db_file
+        self.conn = None
         self.autoclose = True
         self.logger    = None # Default
         if log:
@@ -51,6 +52,8 @@ class BraidSQL:
 
     def __del__(self):
         if not self.autoclose:
+            return
+        if self.conn == None:
             return
         self.conn.commit()
         self.conn.close()
