@@ -64,6 +64,35 @@ image::block-diagram.png[]
 .. Could be in the form of tests
 .. Like a super-Jenkins
 
+=== BraggNN workflow
+
+==== Goals
+
+. Improve peak finding
+. Train model to represent Bragg peaks
+
+==== Workflow
+
+. Scientist configures experiment parameters
+. APS collects raw scattering data
+. Run peak finding on raw data, label peaks
+. Train model on peaks to represent raw data
+. Reproduce and save peak locations
+
+==== Provenance records
+
+===== Notes
+
+* Everything has typical metadata like timestamps
+
+===== Records
+
+. Experimental configurations (independent?)
+. Experiment outputs
+. Derived peak locations
+. Models trained, checkpoints, etc.
+. Inferred peak locations from trained model
+
 == Tests
 
 Tests are in the test/ directory.
