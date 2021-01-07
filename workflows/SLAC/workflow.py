@@ -3,6 +3,8 @@
 SLAC WORKFLOW
 """
 
+import os
+
 from log_tools import get_logger
 import braid_db
 
@@ -13,6 +15,10 @@ logger.info("WORKFLOW START")
 
 db_file = "braid-slac.db"
 
-DB = braid_db.setup_db(db_file)
+braid_db.setup_db(db_file)
+BSQL = braid_db.BraidDB()
+
+if not os.path.exists(db_file):
+    BSQL.create()
 
 logger.info("WORKFLOW STOP")

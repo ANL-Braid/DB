@@ -7,10 +7,11 @@ echo
 echo "WORKFLOW SLAC ..."
 
 THIS=$(  readlink --canonicalize $( dirname $0 ) )
-BRAID=$( readlink --canonicalize $THIS/../.. )
+BRAID_HOME=$( readlink --canonicalize $THIS/../.. )
+export BRAID_HOME
 
-export PYTHONPATH=$BRAID/src
+export PYTHONPATH=$BRAID_HOME/src
 
-cd $BRAID/workflows/SLAC
+cd $BRAID_HOME/workflows/SLAC
 
 python workflow.py $*
