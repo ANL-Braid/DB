@@ -1,13 +1,13 @@
 #!/bin/bash
 set -eu
 
-# TEST ALL SH
+# TEST CORE SH
 
 THIS=$(  readlink --canonicalize $( dirname $0 ) )
 BRAID=$( readlink --canonicalize $THIS/.. )
 
 echo
-echo "TEST-ALL ..."
+echo "TEST-CORE ..."
 
 (
   set -x
@@ -24,5 +24,5 @@ echo "TEST-ALL ..."
   ./test.sh test-1.py
 )
 
-echo "TEST-ALL: OK."
+echo "TEST-CORE: OK."
 echo
