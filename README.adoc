@@ -97,4 +97,7 @@ image::block-diagram.png[]
 
 Tests are in the test/ directory.
 
-Tests are run nightly at https://jenkins-ci.cels.anl.gov/job/Braid-DB
+Tests are run nightly at:
+
+* https://jenkins-ci.cels.anl.gov/job/Braid-DB-Core
+* https://jenkins-ci.cels.anl.gov/job/Braid-DB-Workflows
