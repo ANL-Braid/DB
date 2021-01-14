@@ -1,4 +1,5 @@
 
+import logging
 import sqlite3
 
 class BraidSQL:

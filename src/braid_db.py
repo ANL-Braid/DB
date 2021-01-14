@@ -2,7 +2,7 @@
 import datetime
 import os
 
-from db_tools import BraidSQL
+from db_tools import BraidSQL, qA
 
 def setup_db(db_file):
     '''
@@ -11,13 +11,13 @@ def setup_db(db_file):
     if 'DB' not in globals():
         print('Connecting to DB...')
         global DB
-        DB = BraidSQL(db_file)
+        DB = BraidSQL(db_file, log=True)
     return DB
 
 class BraidDB:
 
     def __init__(self):
-        pass
+        self.DB = None
 
     def create(self):
         ''' Set up the tables defined in the SQL file '''
@@ -26,6 +26,7 @@ class BraidDB:
             raise Exception("Set environment variable BRAID_HOME!")
         print("creating tables: ")
         global DB
+        self.DB = DB
         DB.connect()
         braid_sql = BRAID_HOME + "/src/braid-db.sql"
         with open(braid_sql) as fp:
@@ -48,7 +49,7 @@ class BraidRecord:
 
     def __init__(self, uri, name=None, timestamp=None):
         self.serial = make_serial()
-        self.uri = url
+        self.uri = uri
         self.name = name
         self.dependencies = []
         if timestamp == None:
@@ -71,10 +72,15 @@ class BraidFact(BraidRecord):
     ''' Examples: pre-existing data, software, etc. '''
 
     def __init__(self, uri, name=None):
-        self.uri = url
+        self.uri = uri
+        self.name = name
 
     def add_dependency(self, record):
          raise Exception("BraidFacts do not have dependencies!")
+
+    def store(self, db):
+        record_int = db.DB.insert("records", ["name", "time"], qA(self.name, "now"))
+        print(record_int)
 
 class BraidData(BraidRecord):
 
