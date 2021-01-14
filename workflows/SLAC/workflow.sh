@@ -14,4 +14,4 @@ export PYTHONPATH=$BRAID_HOME/src
 
 cd $BRAID_HOME/workflows/SLAC
 
-python workflow.py $*
+python3 workflow.py $*
