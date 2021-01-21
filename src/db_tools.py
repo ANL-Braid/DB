@@ -7,16 +7,19 @@ class BraidSQL:
     Sets up a wrapper around the SQL connection and cursor objects
     '''
 
-    def __init__(self, db_file, log=False):
+    def __init__(self, db_file, log=False, debug=False):
         self.db_file   = db_file
         self.conn = None
         self.autoclose = True
         self.logger    = None # Default
-        if log:
+        if log or debug:
             logging.basicConfig(format="%(asctime)s %(name)-12s %(message)s",
                                 datefmt='%Y-%m-%d %H:%M:%S')
             self.logger = logging.getLogger("BraidSQL")
-            self.logger.setLevel(logging.INFO)
+            if debug:
+                self.logger.setLevel(logging.DEBUG)
+            else:
+                self.logger.setLevel(logging.INFO)
 
     def connect(self):
         self.conn = sqlite3.connect(self.db_file)

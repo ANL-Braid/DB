@@ -12,7 +12,7 @@ def setup_db(db_file):
     if "DB" not in globals():
         print("Connecting to DB...")
         global DB
-        DB = BraidSQL(db_file, log=True)
+        DB = BraidSQL(db_file, log=True, debug=False)
     return DB
 
 def digits(c):
