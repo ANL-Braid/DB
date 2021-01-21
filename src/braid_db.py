@@ -61,7 +61,7 @@ class BraidDB:
             row = DB.cursor.fetchone()
             if row == None: break
             (record_int, name, time) = row[0:3]
-            print("%s : %s \t %s" % (record_int, name, time))
+            print("%-3s : %-16s %s" % (record_int, name, time))
 
     def debug(self, msg):
         self.logger.debug(msg)
