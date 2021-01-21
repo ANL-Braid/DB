@@ -8,9 +8,7 @@ import os
 from db_tools import BraidSQL, q, qA
 
 def setup_db(db_file):
-    '''
-    Convenience function to use from workflow
-    '''
+    ''' Convenience function to use from workflow '''
     if "DB" not in globals():
         print("Connecting to DB...")
         global DB
