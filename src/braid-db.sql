@@ -10,7 +10,7 @@ create table records(
 
 create table dependencies(
        /* auto-generated integer */
-       record_int serial primary key,
+       record_int integer primary key,
        dependency integer,
        /* creation time */
        time timestamp
