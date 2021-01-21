@@ -6,7 +6,7 @@ SLAC WORKFLOW
 import os
 
 import braid_db
-from braid_db import BraidDB, BraidFact
+from braid_db import *
 import logging
 
 
@@ -27,17 +27,38 @@ if not os.path.exists(db_file):
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
 # Create configuration object
-cfg = BraidFact(uri="login.host:/home/user1/settings.cfg", name="SLAC CFG 1")
+number = braid_db.digits(3)
+name = "SLAC CFG %s" % number
+cfg = BraidFact(db=BSQL,
+                uri="login.host:/home/user1/settings.cfg",
+                name=name)
 # Store configuration object
-cfg.store(BSQL)
+cfg.store()
 # Run experiment
 # Store experiments
+name = "scan-%s" % number
+expt = BraidData(db=BSQL,
+                 uri="login.host:/home/user1/%s.cfg" % name,
+                 name=name)
+expt.store()
+expt.add_dependency(cfg)
+
 # Run simulations
 # Store simulations
+name = "sim-%s" % number
+sim = BraidData(db=BSQL,
+                 uri="login.host:/home/user1/%s.cfg" % name,
+                 name=name)
+sim.store()
+sim.add_dependency(cfg)
+
+
 # Create or retrieve model
 # Feed experiments and simulations to model training
 # Ship model to FPGA
 # Run model
 # Store inferences
+
+
 
 logger.info("WORKFLOW STOP")

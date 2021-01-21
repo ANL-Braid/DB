@@ -78,11 +78,14 @@ def make_serial():
 
 class BraidRecord:
 
-    def __init__(self, uri, name=None, timestamp=None, debug=True):
+    def __init__(self, uri, db=None, name=None, timestamp=None, debug=True):
         self.serial = make_serial()
         self.uri = uri
+        self.db = db
         self.name = name
         self.dependencies = []
+        # None indicates the Record is not in the DB yet
+        self.record_int = None
 
         self.logger = logging.getLogger("BraidRecord")
         if debug: self.logger.setLevel(logging.DEBUG)
@@ -93,14 +96,17 @@ class BraidRecord:
             self.timestamp = timestamp
 
     def add_dependency(self, record):
+        ''' record: a BraidRecord '''
         self.dependencies.append(record)
+        self.db.DB.insert("dependencies", ["record_int", "dependency"],
+                          [str(self.record_int), str(record.record_int)])
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
     def __str__(self):
         if self.name == None:
-            return "BraidRecord(uri=%s)" % self.url
+            return "BraidRecord(uri=%s)" % self.uri
         else:
             return "BraidRecord(\"%s\": uri=%s)" % \
                 (self.name, self.uri)
@@ -113,19 +119,18 @@ class BraidFact(BraidRecord):
 
     ''' Examples: pre-existing data, software, etc. '''
 
-    def __init__(self, uri, name=None):
-        super().__init__(uri, name)
-        # None indicates the Fact is not in the DB yet
-        self.record_int = None
+    def __init__(self, uri, db=None, name=None):
+        super().__init__(uri, db=db, name=name)
 
     def add_dependency(self, record):
          raise Exception("BraidFacts do not have dependencies!")
 
-    def store(self, db):
-        record_int = db.DB.insert("records", ["name", "time"],
-                                  qA(self.name, self.strftime()))
-        self.debug("stored Fact: <%s>" % record_int)
-        return record_int
+    def store(self):
+        self.record_int = self.db.DB.insert("records", ["name", "time"],
+                                       qA(self.name, self.strftime()))
+        self.debug("stored Fact: <%s>" % self.record_int)
+        return self.record_int
+
 
 class BraidData(BraidRecord):
 
@@ -133,16 +138,22 @@ class BraidData(BraidRecord):
         Simulation outputs, data analyses, experiment outputs
     '''
 
-    def __init__(self, uri, name=None):
-        self.uri = url
-        self.name = name
+    def __init__(self, uri, db=None, name=None):
+        super().__init__(uri, db=db, name=name)
+
+    def store(self):
+        self.record_int = self.db.DB.insert("records", ["name", "time"],
+                                            qA(self.name, self.strftime()))
+        self.debug("stored Data: <%s>" % self.record_int)
+        return self.record_int
+
 
 class BraidModel(BraidRecord):
 
     ''' Examples: an ML model that is trained on BraidRecords '''
 
     def __init__(self, uri, name=None):
-        self.uri = url
+        self.uri = uri
         self.name = name
 
     def update(self, data):
