@@ -27,6 +27,15 @@ class BraidSQL:
         self.cursor.execute("PRAGMA busy_timeout = 1000")
         return "OK"
 
+    def select(self, table, what, where=None):
+        ''' Do a SQL select '''
+        cmd = "select %s from %s" % (what, table);
+        if where is not None:
+            cmd += " where "
+            cmd += where
+        cmd += ";"
+        self.execute(cmd)
+
     def insert(self, table, names, values):
         """ Do a SQL insert """
         names_tpl  = sql_tuple(names)

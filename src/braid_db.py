@@ -54,7 +54,7 @@ class BraidDB:
         self.DB = DB
         self.debug("DB.print() ...")
         DB.connect()
-        DB.execute("select * from records;")
+        DB.select("records", "*");
         records = {}
         while True:
             row = DB.cursor.fetchone()
@@ -73,8 +73,8 @@ class BraidDB:
         self.DB = DB
         self.trace("DB.get_dependencies(%s) ...")
         DB.connect()
-        DB.execute("select dependency from dependencies where record_int=%i;" % \
-                   record_int)
+        DB.select("dependencies", "dependency",
+                  "record_int=%i" % record_int)
         deps = []
         while True:
             row = DB.cursor.fetchone()
