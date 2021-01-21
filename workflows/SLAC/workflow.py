@@ -28,7 +28,7 @@ if not os.path.exists(db_file):
 # Create configuration object
 cfg = BraidFact(uri="login.host:/home/user1/settings.cfg", name="SLAC CFG 1")
 # Store configuration object
-# cfg.store(BSQL) # WIP
+cfg.store(BSQL)
 # Run experiment
 # Store experiments
 # Run simulations
