@@ -93,6 +93,14 @@ image::block-diagram.png[]
 . Models trained, checkpoints, etc.
 . Inferred peak locations from trained model
 
+== Tools
+
+bin/braid-db-create::
+Creates a DB based on the structure in braid-db.sql
+
+bin/braid-db-print::
+Print the DB to text
+
 == Tests
 
 Tests are in the test/ directory.
