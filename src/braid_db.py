@@ -8,8 +8,8 @@ def setup_db(db_file):
     '''
     Convenience function to use from workflow
     '''
-    if 'DB' not in globals():
-        print('Connecting to DB...')
+    if "DB" not in globals():
+        print("Connecting to DB...")
         global DB
         DB = BraidSQL(db_file, log=True)
     return DB
