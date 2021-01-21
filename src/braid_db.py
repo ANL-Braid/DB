@@ -17,6 +17,14 @@ def setup_db(db_file):
         DB = BraidSQL(db_file, log=True)
     return DB
 
+def digits(c):
+    ''' Return c random digits (for random names) '''
+    import math, random
+    n = random.randint(0, 10**c)
+    s = "%0*i" % (c, n)
+    return s
+
+
 class BraidDB:
 
     def __init__(self, debug=True):
