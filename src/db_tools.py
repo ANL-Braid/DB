@@ -16,7 +16,7 @@ class BraidSQL:
             logging.basicConfig(format="%(asctime)s %(name)-12s %(message)s",
                                 datefmt='%Y-%m-%d %H:%M:%S')
             self.logger = logging.getLogger("BraidSQL")
-            self.logger.setLevel(logging.DEBUG)
+            self.logger.setLevel(logging.INFO)
 
     def connect(self):
         self.conn = sqlite3.connect(self.db_file)
@@ -35,7 +35,7 @@ class BraidSQL:
         return rowid
 
     def execute(self, cmd):
-        self.log(cmd)
+        self.debug(cmd)
         self.cursor.execute(cmd)
 
     def executescript(self, cmds):
@@ -51,6 +51,10 @@ class BraidSQL:
     def log(self, message):
         if self.logger:
             self.logger.info(message)
+
+    def debug(self, message):
+        if self.logger:
+            self.logger.debug(message)
 
     def __del__(self):
         if not self.autoclose:
