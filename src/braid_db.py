@@ -123,7 +123,8 @@ class BraidFact(BraidRecord):
         super().__init__(uri, db=db, name=name)
 
     def add_dependency(self, record):
-         raise Exception("BraidFacts do not have dependencies!")
+        ''' record: a BraidRecord '''
+        raise Exception("BraidFacts do not have dependencies!")
 
     def store(self):
         self.record_int = self.db.DB.insert("records", ["name", "time"],
