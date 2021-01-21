@@ -13,7 +13,8 @@ class BraidSQL:
         self.autoclose = True
         self.logger    = None # Default
         if log:
-            logging.basicConfig(format="SQL: %(message)s")
+            logging.basicConfig(format="%(asctime)s %(name)-12s %(message)s",
+                                datefmt='%Y-%m-%d %H:%M:%S')
             self.logger = logging.getLogger("BraidSQL")
             self.logger.setLevel(logging.DEBUG)
 

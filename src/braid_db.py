@@ -1,5 +1,8 @@
 
+# BRAID DB
+
 import datetime
+import logging
 import os
 
 from db_tools import BraidSQL, q, qA
@@ -16,7 +19,11 @@ def setup_db(db_file):
 
 class BraidDB:
 
-    def __init__(self):
+    def __init__(self, debug=True):
+
+        self.logger = logging.getLogger("BraidRecord")
+        if debug: self.logger.setLevel(logging.DEBUG)
+
         global DB
         self.DB = DB
         DB.connect()
@@ -39,15 +46,18 @@ class BraidDB:
     def print(self):
         global DB
         self.DB = DB
-        print("DB.print() ...")
+        self.debug("DB.print() ...")
         DB.connect()
         DB.execute("select * from records;")
         while True:
             row = DB.cursor.fetchone()
             if row == None: break
-            name = row[1]
-            time = row[2]
-            print("%s \t %s" % (name, time))
+            (record_int, name, time) = row[0:3]
+            print("%s : %s \t %s" % (record_int, name, time))
+
+    def debug(self, msg):
+        self.logger.debug(msg)
+
 
 serial = 1
 
@@ -57,13 +67,18 @@ def make_serial():
     serial += 1
     return result
 
+
 class BraidRecord:
 
-    def __init__(self, uri, name=None, timestamp=None):
+    def __init__(self, uri, name=None, timestamp=None, debug=True):
         self.serial = make_serial()
         self.uri = uri
         self.name = name
         self.dependencies = []
+
+        self.logger = logging.getLogger("BraidRecord")
+        if debug: self.logger.setLevel(logging.DEBUG)
+
         if timestamp == None:
             self.timestamp = datetime.datetime.now()
         else:
@@ -82,12 +97,18 @@ class BraidRecord:
             return "BraidRecord(\"%s\": uri=%s)" % \
                 (self.name, self.uri)
 
+    def debug(self, msg):
+        self.logger.debug(msg)
+
+
 class BraidFact(BraidRecord):
 
     ''' Examples: pre-existing data, software, etc. '''
 
     def __init__(self, uri, name=None):
         super().__init__(uri, name)
+        # None indicates the Fact is not in the DB yet
+        self.record_int = None
 
     def add_dependency(self, record):
          raise Exception("BraidFacts do not have dependencies!")
@@ -95,7 +116,8 @@ class BraidFact(BraidRecord):
     def store(self, db):
         record_int = db.DB.insert("records", ["name", "time"],
                                   qA(self.name, self.strftime()))
-        print(record_int)
+        self.debug("stored Fact: <%s>" % record_int)
+        return record_int
 
 class BraidData(BraidRecord):
 

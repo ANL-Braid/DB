@@ -5,13 +5,14 @@ SLAC WORKFLOW
 
 import os
 
-from log_tools import get_logger
 import braid_db
 from braid_db import BraidDB, BraidFact
+import logging
 
 
 logger = None
-logger = get_logger(logger, "SLAC")
+# logger = get_braid_logger(logger, "SLAC")
+logger = logging.getLogger("SLAC:")
 
 logger.info("WORKFLOW START")
 
