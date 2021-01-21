@@ -153,11 +153,17 @@ class BraidModel(BraidRecord):
 
     ''' Examples: an ML model that is trained on BraidRecords '''
 
-    def __init__(self, uri, name=None):
-        self.uri = uri
-        self.name = name
+    def __init__(self, uri, db=None, name=None):
+        super().__init__(uri, db=db, name=name)
 
-    def update(self, data):
-        self.dependencies.append(data)
+    def update(self, record):
+        ''' record: a BraidRecord '''
+        super().add_dependency(data)
+
+    def store(self):
+        self.record_int = self.db.DB.insert("records", ["name", "time"],
+                                            qA(self.name, self.strftime()))
+        self.debug("stored Model: <%s>" % self.record_int)
+        return self.record_int
 
 # class Braid
