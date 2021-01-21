@@ -17,7 +17,9 @@ def setup_db(db_file):
 class BraidDB:
 
     def __init__(self):
-        self.DB = None
+        global DB
+        self.DB = DB
+        DB.connect()
 
     def create(self):
         ''' Set up the tables defined in the SQL file '''
@@ -25,9 +27,6 @@ class BraidDB:
         if BRAID_HOME == None:
             raise Exception("Set environment variable BRAID_HOME!")
         print("creating tables: ")
-        global DB
-        self.DB = DB
-        DB.connect()
         braid_sql = BRAID_HOME + "/src/braid-db.sql"
         with open(braid_sql) as fp:
             sqlcode = fp.read()
