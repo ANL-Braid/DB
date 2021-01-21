@@ -101,7 +101,7 @@ image::block-diagram.png[]
 
 == Developer notes
 
-* There is a high-level SQL API wrapper in db_tools called BraidSQL
+* There is a high-level SQL API wrapper in db_tools called BraidSQL. +
   This API is generic SQL, it does not know about Braid concepts
 * The high-level Braid Database API is called BraidDB
 * BraidDB is used by the Braid concepts: BraidFact, BraidRecord,
