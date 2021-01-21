@@ -12,7 +12,5 @@ argvars = vars(args)
 
 db_file = argvars["db"]
 
-setup_db(db_file)
-
-db = BraidDB()
+db = BraidDB(db_file)
 db.print()

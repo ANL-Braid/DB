@@ -17,12 +17,10 @@ logger = logging.getLogger("SLAC:")
 logger.info("WORKFLOW START")
 
 db_file = "braid-slac.db"
-
-braid_db.setup_db(db_file)
-BSQL = BraidDB()
+DB = BraidDB(db_file, debug=False)
 
 if not os.path.exists(db_file):
-    BSQL.create()
+    DB.create()
 
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
@@ -30,7 +28,7 @@ if not os.path.exists(db_file):
 # Create configuration object
 number = braid_db.digits(3)
 name = "SLAC CFG %s" % number
-cfg = BraidFact(db=BSQL,
+cfg = BraidFact(db=DB,
                 uri="login.host:/home/user1/settings.cfg",
                 name=name)
 
@@ -40,7 +38,7 @@ cfg.store()
 # Run experiment
 # Store experiments
 name = "scan-%s" % number
-expt = BraidData(db=BSQL,
+expt = BraidData(db=DB,
                  uri="login.host:/home/user1/%s.cfg" % name,
                  name=name)
 expt.store()
@@ -49,7 +47,7 @@ expt.add_dependency(cfg)
 # Run simulations
 # Store simulations
 name = "sim-%s" % number
-sim = BraidData(db=BSQL,
+sim = BraidData(db=DB,
                 uri="login.host:/home/user1/%s.cfg" % name,
                 name=name)
 sim.store()
@@ -58,7 +56,7 @@ sim.add_dependency(cfg)
 # Create or retrieve model
 # Train model
 name = "model-%s" % name
-model = BraidModel(db=BSQL,
+model = BraidModel(db=DB,
                    uri="login.host:/home/user1/%s.cfg" % name,
                    name=name)
 model.store()

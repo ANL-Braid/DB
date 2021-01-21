@@ -3,16 +3,14 @@
 SLAC WORKFLOW
 """
 
-from log_tools import get_logger
-import braid_db
+from braid_db import *
 
-logger = None
-logger = get_logger(logger, "BraggNN")
+logger = logging.getLogger("BraggNN")
 
 logger.info("WORKFLOW START")
 
 db_file = "braid-braggnn.db"
 
-DB = braid_db.setup_db(db_file)
+DB = BraidDB(db_file)
 
 logger.info("WORKFLOW STOP")

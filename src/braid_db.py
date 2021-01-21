@@ -7,14 +7,6 @@ import os
 
 from db_tools import BraidSQL, q, qA
 
-def setup_db(db_file):
-    ''' Convenience function to use from workflow '''
-    if "DB" not in globals():
-        print("Connecting to DB...")
-        global DB
-        DB = BraidSQL(db_file, log=True, debug=False)
-    return DB
-
 def digits(c):
     ''' Return c random digits (for random names) '''
     import math, random
@@ -25,14 +17,13 @@ def digits(c):
 
 class BraidDB:
 
-    def __init__(self, debug=True):
+    def __init__(self, db_file, debug=True):
 
-        self.logger = logging.getLogger("BraidRecord")
+        self.logger = logging.getLogger("BraidDB")
         if debug: self.logger.setLevel(logging.DEBUG)
 
-        global DB
-        self.DB = DB
-        DB.connect()
+        self.sql = BraidSQL(db_file, log=True, debug=False)
+        self.sql.connect()
 
     def create(self):
         ''' Set up the tables defined in the SQL file '''
@@ -43,21 +34,17 @@ class BraidDB:
         braid_sql = BRAID_HOME + "/src/braid-db.sql"
         with open(braid_sql) as fp:
             sqlcode = fp.read()
-            DB.executescript(sqlcode)
-            DB.commit()
+            self.sql.executescript(sqlcode)
+            self.sql.commit()
 
     def insert(self, record):
         pass
 
     def print(self):
-        global DB
-        self.DB = DB
-        self.debug("DB.print() ...")
-        DB.connect()
-        DB.select("records", "*");
+        self.sql.select("records", "*");
         records = {}
         while True:
-            row = DB.cursor.fetchone()
+            row = self.sql.cursor.fetchone()
             if row == None: break
             (record_int, name, time) = row[0:3]
             records[record_int] = "%3i : %-16s %s" % \
@@ -70,14 +57,12 @@ class BraidDB:
         '''
         return list of integers
         '''
-        self.DB = DB
-        self.trace("DB.get_dependencies(%s) ...")
-        DB.connect()
-        DB.select("dependencies", "dependency",
-                  "record_int=%i" % record_int)
+        self.trace("DB.get_dependencies(%i) ..." % record_int)
+        self.sql.select("dependencies", "dependency",
+                        "record_int=%i" % record_int)
         deps = []
         while True:
-            row = DB.cursor.fetchone()
+            row = self.sql.cursor.fetchone()
             if row == None: break
             deps.append(row[0])
         return deps
@@ -121,8 +106,8 @@ class BraidRecord:
     def add_dependency(self, record):
         ''' record: a BraidRecord '''
         self.dependencies.append(record)
-        self.db.DB.insert("dependencies", ["record_int", "dependency"],
-                          [str(self.record_int), str(record.record_int)])
+        self.db.sql.insert("dependencies", ["record_int", "dependency"],
+                           [str(self.record_int), str(record.record_int)])
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
@@ -150,8 +135,8 @@ class BraidFact(BraidRecord):
         raise Exception("BraidFacts do not have dependencies!")
 
     def store(self):
-        self.record_int = self.db.DB.insert("records", ["name", "time"],
-                                       qA(self.name, self.strftime()))
+        self.record_int = self.db.sql.insert("records", ["name", "time"],
+                                             qA(self.name, self.strftime()))
         self.debug("stored Fact: <%s>" % self.record_int)
         return self.record_int
 
@@ -166,8 +151,8 @@ class BraidData(BraidRecord):
         super().__init__(uri, db=db, name=name)
 
     def store(self):
-        self.record_int = self.db.DB.insert("records", ["name", "time"],
-                                            qA(self.name, self.strftime()))
+        self.record_int = self.db.sql.insert("records", ["name", "time"],
+                                             qA(self.name, self.strftime()))
         self.debug("stored Data: <%s>" % self.record_int)
         return self.record_int
 
@@ -184,8 +169,8 @@ class BraidModel(BraidRecord):
         super().add_dependency(data)
 
     def store(self):
-        self.record_int = self.db.DB.insert("records", ["name", "time"],
-                                            qA(self.name, self.strftime()))
+        self.record_int = self.db.sql.insert("records", ["name", "time"],
+                                             qA(self.name, self.strftime()))
         self.debug("stored Model: <%s>" % self.record_int)
         return self.record_int
 
