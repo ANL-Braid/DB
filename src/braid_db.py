@@ -57,14 +57,36 @@ class BraidDB:
         self.debug("DB.print() ...")
         DB.connect()
         DB.execute("select * from records;")
+        records = {}
         while True:
             row = DB.cursor.fetchone()
             if row == None: break
             (record_int, name, time) = row[0:3]
-            print("%-3s : %-16s %s" % (record_int, name, time))
+            records[record_int] = "%-3s : %-16s %s" % \
+                (record_int, name, time)
+        for record_int in list(records.keys()):
+            deps = self.get_dependencies(record_int)
+            print(records[record_int] + " <- " + str(deps))
+
+    def get_dependencies(self, record_int):
+        self.DB = DB
+        self.trace("DB.get_dependencies() ...")
+        DB.connect()
+        DB.execute("select dependency from dependencies where record_int=%s;" % \
+                   record_int)
+        deps = []
+        while True:
+            row = DB.cursor.fetchone()
+            if row == None: break
+            deps.append(int(row[0]))
+        return deps
 
     def debug(self, msg):
         self.logger.debug(msg)
+
+    def trace(self, msg):
+        self.logger.log(level=logging.DEBUG-5, msg=msg)
+
 
 
 serial = 1
