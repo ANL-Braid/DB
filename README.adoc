@@ -93,6 +93,23 @@ image::block-diagram.png[]
 . Models trained, checkpoints, etc.
 . Inferred peak locations from trained model
 
+== Getting started
+
+* No software beyond Python is required
+  (a SQLite API is part of the Python standard library)
+* See the test cases in the test directory
+
+== Developer notes
+
+* There is a high-level SQL API wrapper in db_tools called BraidSQL
+  This API is generic SQL, it does not know about Braid concepts
+* The high-level Braid Database API is called BraidDB
+* BraidDB is used by the Braid concepts: BraidFact, BraidRecord,
+  BraidModel, ...
+* The Braid concepts are used by the workflows
+* We constantly check the DB connection because this is useful when
+  running workflows
+
 == Tools
 
 bin/braid-db-create::
