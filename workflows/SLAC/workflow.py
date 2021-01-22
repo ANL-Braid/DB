@@ -19,9 +19,6 @@ logger.info("WORKFLOW START")
 db_file = "braid-slac.db"
 DB = BraidDB(db_file, debug=False)
 
-if not os.path.exists(db_file):
-    DB.create()
-
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
 

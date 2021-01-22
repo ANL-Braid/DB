@@ -16,7 +16,8 @@ do
   (
     set -x
     pwd
-    $BRAID/workflows/$WORKFLOW/workflow.sh
+    cd $BRAID/workflows/$WORKFLOW
+    ./workflow.sh -B
   )
   echo "TEST WORKFLOW: $WORKFLOW OK."
 done
