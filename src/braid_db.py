@@ -47,11 +47,21 @@ class BraidDB:
             row = self.sql.cursor.fetchone()
             if row == None: break
             (record_int, name, time) = row[0:3]
-            records[record_int] = "%3i : %-16s %s" % \
-                (record_int, name, time)
+            text = "%3i : %-16s %s" % (record_int, name, time)
+            records[record_int] = text
         for record_int in list(records.keys()):
             deps = self.get_dependencies(record_int)
-            print(records[record_int] + " <- " + str(deps))
+            text = records[record_int] + " <- " + str(deps)
+            records[record_int] = text
+        for record_int in list(records.keys()):
+            uris = self.get_uris(record_int)
+            text = records[record_int]
+            for uri in uris:
+                text += "\n\t\t\t"
+                text += uri
+            records[record_int] = text
+        for record_int in list(records.keys()):
+            print(records[record_int])
 
     def get_dependencies(self, record_int):
         '''
@@ -66,6 +76,20 @@ class BraidDB:
             if row == None: break
             deps.append(row[0])
         return deps
+
+    def get_uris(self, record_int):
+        '''
+        return list of string URIs
+        '''
+        self.trace("DB.get_uris(%i) ..." % record_int)
+        self.sql.select("uris", "uri",
+                        "record_int=%i" % record_int)
+        uris = []
+        while True:
+            row = self.sql.cursor.fetchone()
+            if row == None: break
+            uris.append(row[0])
+        return uris
 
     def debug(self, msg):
         self.logger.debug(msg)
@@ -86,12 +110,12 @@ def make_serial():
 
 class BraidRecord:
 
-    def __init__(self, uri, db=None, name=None, timestamp=None, debug=True):
+    def __init__(self, db=None, name=None, timestamp=None, debug=True):
         self.serial = make_serial()
-        self.uri = uri
         self.db = db
         self.name = name
         self.dependencies = []
+        self.uris = []
         # None indicates the Record is not in the DB yet
         self.record_int = None
 
@@ -109,15 +133,20 @@ class BraidRecord:
         self.db.sql.insert("dependencies", ["record_int", "dependency"],
                            [str(self.record_int), str(record.record_int)])
 
+    def add_uri(self, uri):
+        ''' uri: a string URI '''
+        self.uris.append(uri)
+        self.db.sql.insert("uris", ["record_int", "uri"],
+                           [str(self.record_int), q(uri)])
+
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
     def __str__(self):
         if self.name == None:
-            return "BraidRecord(uri=%s)" % self.uri
+            return "BraidRecord" % self.uri
         else:
-            return "BraidRecord(\"%s\": uri=%s)" % \
-                (self.name, self.uri)
+            return "BraidRecord(\"%s\")" % self.name
 
     def debug(self, msg):
         self.logger.debug(msg)
@@ -127,8 +156,8 @@ class BraidFact(BraidRecord):
 
     ''' Examples: pre-existing data, software, etc. '''
 
-    def __init__(self, uri, db=None, name=None):
-        super().__init__(uri, db=db, name=name)
+    def __init__(self, db=None, name=None):
+        super().__init__(db=db, name=name)
 
     def add_dependency(self, record):
         ''' record: a BraidRecord '''
@@ -147,8 +176,8 @@ class BraidData(BraidRecord):
         Simulation outputs, data analyses, experiment outputs
     '''
 
-    def __init__(self, uri, db=None, name=None):
-        super().__init__(uri, db=db, name=name)
+    def __init__(self, db=None, name=None):
+        super().__init__(db=db, name=name)
 
     def store(self):
         self.record_int = self.db.sql.insert("records", ["name", "time"],
@@ -161,8 +190,8 @@ class BraidModel(BraidRecord):
 
     ''' Examples: an ML model that is trained on BraidRecords '''
 
-    def __init__(self, uri, db=None, name=None):
-        super().__init__(uri, db=db, name=name)
+    def __init__(self, db=None, name=None):
+        super().__init__(db=db, name=name)
 
     def update(self, record):
         ''' record: a BraidRecord '''

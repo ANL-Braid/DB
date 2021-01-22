@@ -1,4 +1,9 @@
 
+/*
+    BRAID DB SQL
+*/
+
+/* The main list of records */
 create table records(
        /* auto-generated integer */
        record_int integer primary key,
@@ -8,10 +13,16 @@ create table records(
        time timestamp
 );
 
+/* Each record has some number of dependencies here */
 create table dependencies(
-       /* auto-generated integer */
        record_int integer,
        dependency integer,
        /* creation time */
        time timestamp
 );
+
+/* Each record has some number of URIs here */
+create table uris(
+       record_int integer,
+       uri character varying(1024)
+)
