@@ -4,7 +4,5 @@
 
 from braid_db import *
 
-setup_db("braid.db")
-
-db = BraidDB()
+db = BraidDB("braid.db")
 db.create()

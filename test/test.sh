@@ -15,5 +15,5 @@ shift
 cd $THIS
 
 export PYTHONPATH=${PYTHONPATH:-}:$BRAID_HOME/src
-python $TEST ${*}
+python3 $TEST ${*}
 # Returns exit code from python
