@@ -7,5 +7,6 @@ THIS=$(  readlink --canonicalize $( dirname $0 ) )
 export BRAID_HOME=$( readlink --canonicalize $THIS/.. )
 
 export PYTHONPATH=${PYTHONPATH:-}:$BRAID_HOME/src
-python3 src/tools/db-create.py ${*}
-# Returns exit code from python
+
+python3 $BRAID_HOME/src/tools/db-create.py $*
+# Return exit code from python
