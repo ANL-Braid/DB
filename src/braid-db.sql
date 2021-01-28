@@ -27,9 +27,13 @@ create table uris(
        uri text
 );
 
-/* Each record has some number of tags here */
+/* Each record has some number of tags here
+   type: 1=string, 2=integer, 3=float
+   Cf. BraidTagType
+*/
 create table tags(
        record_id integer,
        key   text,
-       value text
+       value text,
+       type  integer
 );

@@ -14,6 +14,22 @@ def digits(c):
     s = "%0*i" % (c, n)
     return s
 
+from enum import Enum, unique
+
+@unique
+class BraidTagType(Enum):
+    # Cf braid-db.sql
+    NONE    = 0
+    STRING  = 1
+    INTEGER = 2
+    FLOAT   = 3
+
+
+class BraidTagValue:
+    def __init__(self, value, type_):
+        self.value = value
+        self.type_ = type_
+
 
 class BraidDB:
 
@@ -22,7 +38,7 @@ class BraidDB:
         self.logger = logging.getLogger("BraidDB")
         if debug: self.logger.setLevel(logging.DEBUG)
 
-        self.sql = BraidSQL(db_file, log=True, debug=False)
+        self.sql = BraidSQL(db_file, log=True, debug=True)
         self.sql.connect()
 
     def create(self):
@@ -60,16 +76,23 @@ class BraidDB:
                 text += "\n\t\t\t URI: "
                 text += uri
             records[record_id] = text
+        self.extract_tags(records)
+        for record_id in list(records.keys()):
+            print(records[record_id])
+
+    def extract_tags(self, records):
+        ''' Append tags data to records '''
         for record_id in list(records.keys()):
             tags = self.get_tags(record_id)
             text = records[record_id]
-            for key in tags.keys():
-                text += "\n\t\t\t TAG: "
-                text += "%s = '%s'" % (key, tags[key])
+        for key in tags.keys():
+            text += "\n\t\t\t TAG: "
+            if tags[key].type_ == BraidTagType.INTEGER or \
+               tags[key].type_ == BraidTagType.FLOAT:
+                text += "%s = %s"   % (key, tags[key].value)
+            else:
+                text += "%s = '%s'" % (key, tags[key].value)
             records[record_id] = text
-
-        for record_id in list(records.keys()):
-            print(records[record_id])
 
     def get_dependencies(self, record_id):
         '''
@@ -101,16 +124,18 @@ class BraidDB:
 
     def get_tags(self, record_id):
         '''
-        return map of string-string key-value pairs
+        return dict of string->BraidTagValue key->value pairs
         '''
         self.trace("DB.get_tags(%i) ..." % record_id)
-        self.sql.select("tags", "key, value",
+        self.sql.select("tags", "key, value, type",
                         "record_id=%i" % record_id)
         tags = {}
         while True:
             row = self.sql.cursor.fetchone()
             if row == None: break
-            (key, value) = row[0:2]
+            (key, v, t) = row[0:3]
+            type_ = BraidTagType(t)
+            value = BraidTagValue(v, type_)
             tags[key] = value
         return tags
 
@@ -139,6 +164,7 @@ class BraidRecord:
         self.name = name
         self.dependencies = []
         self.uris = []
+        # Dict of string->BraidTagValue
         self.tags = {}
         # None indicates the Record is not in the DB yet
         self.record_id = None
@@ -163,13 +189,19 @@ class BraidRecord:
         self.db.sql.insert("uris", ["record_id", "uri"],
                            [str(self.record_id), q(uri)])
 
-    def add_tag(self, key, value):
+    def add_tag(self, key, value, type_=BraidTagType.STRING):
         ''' key:   a string key name
             value: a string value
         '''
+        if not isinstance(type_, BraidTagType):
+            raise Exception("type must be a BraidTagType! " +
+                            "received: '%s' type: %s" % (
+                                str(type_), type(type_)))
         self.tags[key] = value
-        self.db.sql.insert("tags", ["record_id", "key", "value"],
-                           [str(self.record_id), q(key), q(value)])
+        self.db.sql.insert("tags",
+                           ["record_id", "key", "value", "type"],
+                           [str(self.record_id),
+                            q(key), q(value), str(type_.value)])
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
