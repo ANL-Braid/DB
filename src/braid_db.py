@@ -46,30 +46,30 @@ class BraidDB:
         while True:
             row = self.sql.cursor.fetchone()
             if row == None: break
-            (record_int, name, time) = row[0:3]
-            text = "%3i : %-16s %s" % (record_int, name, time)
-            records[record_int] = text
-        for record_int in list(records.keys()):
-            deps = self.get_dependencies(record_int)
-            text = records[record_int] + " <- " + str(deps)
-            records[record_int] = text
-        for record_int in list(records.keys()):
-            uris = self.get_uris(record_int)
-            text = records[record_int]
+            (record_id, name, time) = row[0:3]
+            text = "%3i : %-16s %s" % (record_id, name, time)
+            records[record_id] = text
+        for record_id in list(records.keys()):
+            deps = self.get_dependencies(record_id)
+            text = records[record_id] + " <- " + str(deps)
+            records[record_id] = text
+        for record_id in list(records.keys()):
+            uris = self.get_uris(record_id)
+            text = records[record_id]
             for uri in uris:
                 text += "\n\t\t\t"
                 text += uri
-            records[record_int] = text
-        for record_int in list(records.keys()):
-            print(records[record_int])
+            records[record_id] = text
+        for record_id in list(records.keys()):
+            print(records[record_id])
 
-    def get_dependencies(self, record_int):
+    def get_dependencies(self, record_id):
         '''
         return list of integers
         '''
-        self.trace("DB.get_dependencies(%i) ..." % record_int)
+        self.trace("DB.get_dependencies(%i) ..." % record_id)
         self.sql.select("dependencies", "dependency",
-                        "record_int=%i" % record_int)
+                        "record_id=%i" % record_id)
         deps = []
         while True:
             row = self.sql.cursor.fetchone()
@@ -77,13 +77,13 @@ class BraidDB:
             deps.append(row[0])
         return deps
 
-    def get_uris(self, record_int):
+    def get_uris(self, record_id):
         '''
         return list of string URIs
         '''
-        self.trace("DB.get_uris(%i) ..." % record_int)
+        self.trace("DB.get_uris(%i) ..." % record_id)
         self.sql.select("uris", "uri",
-                        "record_int=%i" % record_int)
+                        "record_id=%i" % record_id)
         uris = []
         while True:
             row = self.sql.cursor.fetchone()
@@ -117,7 +117,7 @@ class BraidRecord:
         self.dependencies = []
         self.uris = []
         # None indicates the Record is not in the DB yet
-        self.record_int = None
+        self.record_id = None
 
         self.logger = logging.getLogger("BraidRecord")
         if debug: self.logger.setLevel(logging.DEBUG)
@@ -130,14 +130,14 @@ class BraidRecord:
     def add_dependency(self, record):
         ''' record: a BraidRecord '''
         self.dependencies.append(record)
-        self.db.sql.insert("dependencies", ["record_int", "dependency"],
-                           [str(self.record_int), str(record.record_int)])
+        self.db.sql.insert("dependencies", ["record_id", "dependency"],
+                           [str(self.record_id), str(record.record_id)])
 
     def add_uri(self, uri):
         ''' uri: a string URI '''
         self.uris.append(uri)
-        self.db.sql.insert("uris", ["record_int", "uri"],
-                           [str(self.record_int), q(uri)])
+        self.db.sql.insert("uris", ["record_id", "uri"],
+                           [str(self.record_id), q(uri)])
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
@@ -164,10 +164,10 @@ class BraidFact(BraidRecord):
         raise Exception("BraidFacts do not have dependencies!")
 
     def store(self):
-        self.record_int = self.db.sql.insert("records", ["name", "time"],
+        self.record_id = self.db.sql.insert("records", ["name", "time"],
                                              qA(self.name, self.strftime()))
-        self.debug("stored Fact: <%s>" % self.record_int)
-        return self.record_int
+        self.debug("stored Fact: <%s>" % self.record_id)
+        return self.record_id
 
 
 class BraidData(BraidRecord):
@@ -180,10 +180,10 @@ class BraidData(BraidRecord):
         super().__init__(db=db, name=name)
 
     def store(self):
-        self.record_int = self.db.sql.insert("records", ["name", "time"],
+        self.record_id = self.db.sql.insert("records", ["name", "time"],
                                              qA(self.name, self.strftime()))
-        self.debug("stored Data: <%s>" % self.record_int)
-        return self.record_int
+        self.debug("stored Data: <%s>" % self.record_id)
+        return self.record_id
 
 
 class BraidModel(BraidRecord):
@@ -198,9 +198,9 @@ class BraidModel(BraidRecord):
         super().add_dependency(data)
 
     def store(self):
-        self.record_int = self.db.sql.insert("records", ["name", "time"],
+        self.record_id = self.db.sql.insert("records", ["name", "time"],
                                              qA(self.name, self.strftime()))
-        self.debug("stored Model: <%s>" % self.record_int)
-        return self.record_int
+        self.debug("stored Model: <%s>" % self.record_id)
+        return self.record_id
 
 # class Braid
