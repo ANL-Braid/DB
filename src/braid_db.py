@@ -57,9 +57,17 @@ class BraidDB:
             uris = self.get_uris(record_id)
             text = records[record_id]
             for uri in uris:
-                text += "\n\t\t\t"
+                text += "\n\t\t\t URI: "
                 text += uri
             records[record_id] = text
+        for record_id in list(records.keys()):
+            tags = self.get_tags(record_id)
+            text = records[record_id]
+            for key in tags.keys():
+                text += "\n\t\t\t TAG: "
+                text += "%s = '%s'" % (key, tags[key])
+            records[record_id] = text
+
         for record_id in list(records.keys()):
             print(records[record_id])
 
@@ -91,6 +99,21 @@ class BraidDB:
             uris.append(row[0])
         return uris
 
+    def get_tags(self, record_id):
+        '''
+        return map of string-string key-value pairs
+        '''
+        self.trace("DB.get_tags(%i) ..." % record_id)
+        self.sql.select("tags", "key, value",
+                        "record_id=%i" % record_id)
+        tags = {}
+        while True:
+            row = self.sql.cursor.fetchone()
+            if row == None: break
+            (key, value) = row[0:2]
+            tags[key] = value
+        return tags
+
     def debug(self, msg):
         self.logger.debug(msg)
 
@@ -116,6 +139,7 @@ class BraidRecord:
         self.name = name
         self.dependencies = []
         self.uris = []
+        self.tags = {}
         # None indicates the Record is not in the DB yet
         self.record_id = None
 
@@ -138,6 +162,14 @@ class BraidRecord:
         self.uris.append(uri)
         self.db.sql.insert("uris", ["record_id", "uri"],
                            [str(self.record_id), q(uri)])
+
+    def add_tag(self, key, value):
+        ''' key:   a string key name
+            value: a string value
+        '''
+        self.tags[key] = value
+        self.db.sql.insert("tags", ["record_id", "key", "value"],
+                           [str(self.record_id), q(key), q(value)])
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")

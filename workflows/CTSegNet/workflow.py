@@ -51,7 +51,7 @@ model.add_dependency(cfg)
 model.add_dependency(expt)
 uri = "login.host:/home/user1/%s.h5" % name
 model.add_uri(uri)
-
+model.add_tag("model-number", str(number))
 
 
 logger.info("WORKFLOW STOP")
