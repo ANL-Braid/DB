@@ -18,6 +18,7 @@ class BraidSQL:
             self.logger = logging.getLogger("BraidSQL")
             if debug:
                 self.logger.setLevel(logging.DEBUG)
+                self.debug("debugging enabled ...")
             else:
                 self.logger.setLevel(logging.INFO)
 
