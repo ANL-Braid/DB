@@ -52,7 +52,7 @@ model.add_dependency(expt)
 uri = "login.host:/home/user1/%s.h5" % name
 model.add_uri(uri)
 model.add_tag("model-number", str(number),
-              type_=BraidTypeTag.INTEGER)
+              type_=BraidTagType.INTEGER)
 
 
 logger.info("WORKFLOW STOP")
