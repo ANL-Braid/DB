@@ -93,6 +93,32 @@ image::block-diagram.png[]
 . Models trained, checkpoints, etc.
 . Inferred peak locations from trained model
 
+=== SSX
+
+==== Goals
+
+. Track the provenance of SSX crystal structures
+
+==== Workflow
+
+. Scientists create a beamline.json and process.phil file
+. Analysis is performed on the input data using these configs to create int files
+. The int files are used with a prime.phil file to create a structure
+
+==== Provenance records
+
+===== Notes
+
+. Structures can come from multiple experiments. This is defined by an intlist in the prime.phil file.
+
+===== Records
+
+. Experimental config files (phil, beamline.json)
+. Analysis results (int files)
+. Derived structure
+
+
+
 == Getting started
 
 * No software beyond Python is required
