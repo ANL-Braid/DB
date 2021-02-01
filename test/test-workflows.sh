@@ -9,7 +9,7 @@ BRAID=$( readlink --canonicalize $THIS/.. )
 echo
 echo "TEST-WORKFLOWS ..."
 
-for WORKFLOW in SLAC BraggNN CTSegNet
+for WORKFLOW in SLAC BraggNN CTSegNet SSX
 do
   echo
   echo "TEST WORKFLOW: $WORKFLOW ..."
