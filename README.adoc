@@ -143,6 +143,19 @@ https://raw.githubusercontent.com/aniketkt/CTSegNet/master/notebooks/CTSegNet_co
 . Refer to TomoBank IDs for data identification scheme
 . Need rich metadata for search
 
+=== Samarakoon/Osborn
+
+==== Goals
+
+. Fit simulated crystal structure to scattering data
+
+==== Workflow
+
+. Obtain neutron scattering data
+. Apply auto-encoder to identify important features
+. Apply dimensionality reduction
+. Fit to data
+
 == Getting started
 
 * No software beyond Python is required
