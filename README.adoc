@@ -125,6 +125,7 @@ image::block-diagram.png[]
 
 ==== Workflow
 
+. https://raw.githubusercontent.com/aniketkt/CTSegNet/master/notebooks/CTSegNet_continuouslearning.png[Diagram]
 . A tomo scan is obtained
 . Perform image processing, contrast adjustment, etc.
 . Apply (labeling) "masks"
