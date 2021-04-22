@@ -7,14 +7,17 @@ import os
 
 from db_tools import BraidSQL, q, qA
 
+
 def digits(c):
     ''' Return c random digits (for random names) '''
-    import math, random
+    import random
     n = random.randint(0, 10**c)
     s = "%0*i" % (c, n)
     return s
 
+
 from enum import Enum, unique
+
 
 @unique
 class BraidTagType(Enum):
@@ -44,7 +47,7 @@ class BraidDB:
     def create(self):
         ''' Set up the tables defined in the SQL file '''
         BRAID_HOME = os.getenv("BRAID_HOME")
-        if BRAID_HOME == None:
+        if BRAID_HOME is None:
             raise Exception("Set environment variable BRAID_HOME!")
         print("creating tables: ")
         braid_sql = BRAID_HOME + "/src/braid-db.sql"
@@ -57,11 +60,11 @@ class BraidDB:
         pass
 
     def print(self):
-        self.sql.select("records", "*");
+        self.sql.select("records", "*")
         records = {}
         while True:
             row = self.sql.cursor.fetchone()
-            if row == None: break
+            if row is None: break
             (record_id, name, time) = row[0:3]
             text = "%3i : %-16s %s" % (record_id, name, time)
             records[record_id] = text
@@ -104,7 +107,7 @@ class BraidDB:
         deps = []
         while True:
             row = self.sql.cursor.fetchone()
-            if row == None: break
+            if row is None: break
             deps.append(row[0])
         return deps
 
@@ -118,7 +121,7 @@ class BraidDB:
         uris = []
         while True:
             row = self.sql.cursor.fetchone()
-            if row == None: break
+            if row is None: break
             uris.append(row[0])
         return uris
 
@@ -132,7 +135,7 @@ class BraidDB:
         tags = {}
         while True:
             row = self.sql.cursor.fetchone()
-            if row == None: break
+            if row is None: break
             (key, v, t) = row[0:3]
             type_ = BraidTagType(t)
             value = BraidTagValue(v, type_)
@@ -146,8 +149,8 @@ class BraidDB:
         self.logger.log(level=logging.DEBUG-5, msg=msg)
 
 
-
 serial = 1
+
 
 def make_serial():
     global serial
@@ -172,7 +175,7 @@ class BraidRecord:
         self.logger = logging.getLogger("BraidRecord")
         if debug: self.logger.setLevel(logging.DEBUG)
 
-        if timestamp == None:
+        if timestamp is None:
             self.timestamp = datetime.datetime.now()
         else:
             self.timestamp = timestamp
@@ -207,7 +210,7 @@ class BraidRecord:
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
     def __str__(self):
-        if self.name == None:
+        if self.name is None:
             return "BraidRecord" % self.uri
         else:
             return "BraidRecord(\"%s\")" % self.name
@@ -229,7 +232,7 @@ class BraidFact(BraidRecord):
 
     def store(self):
         self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                             qA(self.name, self.strftime()))
+                                            qA(self.name, self.strftime()))
         self.debug("stored Fact: <%s>" % self.record_id)
         return self.record_id
 
@@ -245,7 +248,7 @@ class BraidData(BraidRecord):
 
     def store(self):
         self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                             qA(self.name, self.strftime()))
+                                            qA(self.name, self.strftime()))
         self.debug("stored Data: <%s>" % self.record_id)
         return self.record_id
 
@@ -259,11 +262,11 @@ class BraidModel(BraidRecord):
 
     def update(self, record):
         ''' record: a BraidRecord '''
-        super().add_dependency(data)
+        super().add_dependency(record)
 
     def store(self):
         self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                             qA(self.name, self.strftime()))
+                                            qA(self.name, self.strftime()))
         self.debug("stored Model: <%s>" % self.record_id)
         return self.record_id
 
