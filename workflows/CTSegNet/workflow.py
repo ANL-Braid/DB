@@ -3,8 +3,6 @@
 CTSegNet WORKFLOW
 """
 
-import os
-
 import braid_db
 from braid_db import *
 import logging
