@@ -24,7 +24,7 @@ count_configurations = 3
 # Number of experiments per cycle
 count_experiments    = 3
 # Number of experiment cycles
-count_cycles         = 3
+count_cycles         = 1
 # URIs per Record
 count_uris           = 3
 # Number of configuration dependencies per experiment
@@ -55,22 +55,21 @@ for model_id in range(0, model_count):
     model.store()
     model.add_dependency(cfgs[model_id])
 
-## CYCLE LOOP START
+# Loop over experiment cycles
+for i in range(0, count_cycles):
+    for j in range(0, count_experiments):
+        number = digits(3)
+        name = "expt-%s" % number
+        expt = BraidData(db=DB, name=name)
+        expt.store()
+        samples = random.sample(cfgs, count_cfg_deps)
+        for cfg in samples:
+            expt.add_dependency(cfg)
+        for k in range(0, count_uris):
+            uri = "login.host:/home/user1/expt-%s.data" % digits(3)
+            expt.add_uri(uri)
+        for model in models:
+            model.add_dependency(expt)
 
-for i in range(0, count_experiments):
-    number = digits(3)
-    name = "expt-%s" % number
-    expt = BraidData(db=DB, name=name)
-    expt.store()
-    samples = random.sample(cfgs, count_cfg_deps)
-    for cfg in samples:
-        expt.add_dependency(cfg)
-    for j in range(0, count_uris):
-        uri = "login.host:/home/user1/expt-%s.data" % digits(3)
-        expt.add_uri(uri)
-    for model in models:
-        model.add_dependency(expt)
-
-## CYCLE LOOP END
-
+# For Emacs/Elpy
 # (elpy-rpc-pythonpath "../../src")
