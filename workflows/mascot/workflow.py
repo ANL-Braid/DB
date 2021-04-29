@@ -5,7 +5,7 @@ MASCOT WORKFLOW
 
 from braid_db import *
 import logging
-
+import random
 
 logger = None
 logger = logging.getLogger("Mascot:")
@@ -19,8 +19,12 @@ DB = BraidDB(db_file, debug=False)
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
 
+# Number of configurations
 count_configurations = 3
+# Number of experiments per cycle
 count_experiments    = 3
+# Number of experiment cycles
+count_cycles         = 3
 # URIs per Record
 count_uris           = 3
 # Number of configuration dependencies per experiment
@@ -36,7 +40,7 @@ for i in range(0, count_configurations):
     cfg = BraidFact(db=DB, name=name)
     cfg.store()
     for j in range(0, count_uris):
-        uri = "login.host:/home/user1/setup-%i.cfg" % digits(3)
+        uri = "login.host:/home/user1/setup-%s.cfg" % digits(3)
         cfg.add_uri(uri)
     cfgs.append(cfg)
 
@@ -45,14 +49,14 @@ model_count = 3
 models = []
 # Train initial models
 for model_id in range(0, model_count):
-    name = "model-%s-%i" % (number, model_id)
+    name = "model-%i" % (model_id)
     model = BraidModel(db=DB, name=name)
+    models.append(model)
     model.store()
-    model.add_dependency(cfg)
+    model.add_dependency(cfgs[model_id])
 
-## LOOP START
+## CYCLE LOOP START
 
-# Run experiments/simulations
 for i in range(0, count_experiments):
     number = digits(3)
     name = "expt-%s" % number
@@ -61,16 +65,12 @@ for i in range(0, count_experiments):
     samples = random.sample(cfgs, count_cfg_deps)
     for cfg in samples:
         expt.add_dependency(cfg)
-    uri = "login.host:/home/user1/%s.data" % name
     for j in range(0, count_uris):
-        uri = "login.host:/home/user1/expt-%i.data" % digits(3)
+        uri = "login.host:/home/user1/expt-%s.data" % digits(3)
         expt.add_uri(uri)
-    expt.add_uri(uri)
+    for model in models:
+        model.add_dependency(expt)
 
-## LOOP END
-
-print(hi)
-
-## OK
+## CYCLE LOOP END
 
 # (elpy-rpc-pythonpath "../../src")
