@@ -6,12 +6,14 @@ from braid_db import *
 
 import argparse
 parser = argparse.ArgumentParser(description="Setup the Braid DB.")
-parser.add_argument("-B", action="store_true", help="Move an existing DB to a backup")
+parser.add_argument("-B", action="store_true",
+                    help="Move an existing DB to a backup")
 parser.add_argument("db", action="store", help="specify DB file")
 args = parser.parse_args()
 argvars = vars(args)
 
 db_file = argvars["db"]
+
 
 def find_next_bak(filename):
     i = 1
@@ -22,6 +24,7 @@ def find_next_bak(filename):
         i += 1
     # unreachable
     assert False
+
 
 if argvars["B"] is not None:
     import os
