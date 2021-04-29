@@ -66,7 +66,7 @@ class BraidDB:
             row = self.sql.cursor.fetchone()
             if row is None: break
             (record_id, name, time) = row[0:3]
-            text = "%3i : %-16s %s" % (record_id, name, time)
+            text = "%5s : %-16s %s" % ("[%i]" % record_id, name, time)
             records[record_id] = text
         for record_id in list(records.keys()):
             deps = self.get_dependencies(record_id)
