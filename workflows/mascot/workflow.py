@@ -25,6 +25,8 @@ def parse_args():
     parser.add_argument("--deps", type=int, default=3,
                         help="""Number of configuration dependencies
                                 per experiment""")
+    parser.add_argument("--models", type=int, default=3,
+                        help="Number of models")
     parser.add_argument("--time", default=False, action="store_true",
                         help="Report run time")
     parser.add_argument("--verbose", type=int, default=0,
@@ -66,6 +68,13 @@ count_cycles         = args.cycles
 count_uris           = args.uris
 # Number of configuration dependencies per experiment
 count_cfg_deps       = args.deps
+count_models         = args.models
+
+if count_models > count_configurations:
+    logger.fatal("mascot: FATAL: " +
+                 "configurations=%i must be >= models=%i" %
+                 (count_configurations, count_models))
+    exit(1)
 
 # List of all configuration Facts
 cfgs = []
@@ -84,10 +93,9 @@ for i in range(0, count_configurations):
     cfgs.append(cfg)
 
 # Create or retrieve models
-model_count = 3
 models = []
 # Train initial models
-for model_id in range(0, model_count):
+for model_id in range(0, count_models):
     name = "model-%i" % (model_id)
     model = BraidModel(db=DB, name=name)
     models.append(model)
@@ -113,7 +121,7 @@ for i in range(0, count_cycles):
 time_stop = time.time()
 if args.time:
     duration = time_stop - time_start
-    print("mascot time: %0.3f" % duration)
+    print("mascot time: %0.4f" % duration)
 
 # For Emacs/Elpy
 # (elpy-rpc-pythonpath "../../src")
