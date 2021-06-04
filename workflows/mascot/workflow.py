@@ -3,9 +3,11 @@
 MASCOT WORKFLOW
 """
 
-from braid_db import *
 import logging
 import random
+import time
+
+from braid_db import *
 
 
 def parse_args():
@@ -23,6 +25,11 @@ def parse_args():
     parser.add_argument("--deps", type=int, default=3,
                         help="""Number of configuration dependencies
                                 per experiment""")
+    parser.add_argument("--time", default=False, action="store_true",
+                        help="Report run time")
+    parser.add_argument("--verbose", type=int, default=0,
+                        help="Logger verbosity: 0=least, 1, 2=most")
+
     args = parser.parse_args()
     return args
 
@@ -31,12 +38,20 @@ args = parse_args()
 
 logger = None
 logger = logging.getLogger("Mascot:")
-logger.setLevel(logging.INFO)
+
+level = logging.WARN
+if args.verbose == 1:
+    level = logging.INFO
+elif args.verbose == 2:
+    level = logging.DEBUG
+logger.setLevel(level)
 
 logger.info("WORKFLOW START")
 
 db_file = "braid-mascot.db"
-DB = BraidDB(db_file, debug=False)
+DB = BraidDB(db_file,
+             log=(args.verbose>0),
+             debug=(args.verbose>1))
 
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
@@ -54,6 +69,8 @@ count_cfg_deps       = args.deps
 
 # List of all configuration Facts
 cfgs = []
+
+time_start = time.time()
 
 # Create configuration objects
 for i in range(0, count_configurations):
@@ -92,6 +109,11 @@ for i in range(0, count_cycles):
             expt.add_uri(uri)
         for model in models:
             model.add_dependency(expt)
+
+time_stop = time.time()
+if args.time:
+    duration = time_stop - time_start
+    print("mascot time: %0.3f" % duration)
 
 # For Emacs/Elpy
 # (elpy-rpc-pythonpath "../../src")
