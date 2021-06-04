@@ -7,6 +7,28 @@ from braid_db import *
 import logging
 import random
 
+
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(description=
+                                     "Run a synthetic workflow")
+    parser.add_argument("--configurations", type=int, default=3,
+                        help="Number of configurations")
+    parser.add_argument("--experiments", type=int, default=3,
+                        help="Number of experiments")
+    parser.add_argument("--cycles", type=int, default=1,
+                        help="Number of experiment cycles")
+    parser.add_argument("--uris", type=int, default=3,
+                        help="Number of URIs per record")
+    parser.add_argument("--deps", type=int, default=3,
+                        help="""Number of configuration dependencies
+                                per experiment""")
+    args = parser.parse_args()
+    return args
+
+
+args = parse_args()
+
 logger = None
 logger = logging.getLogger("Mascot:")
 logger.setLevel(logging.INFO)
@@ -20,15 +42,15 @@ DB = BraidDB(db_file, debug=False)
 # ... Create dependency linkages along the way
 
 # Number of configurations
-count_configurations = 3
+count_configurations = args.configurations
 # Number of experiments per cycle
-count_experiments    = 3
+count_experiments    = args.experiments
 # Number of experiment cycles
-count_cycles         = 1
+count_cycles         = args.cycles
 # URIs per Record
-count_uris           = 3
+count_uris           = args.uris
 # Number of configuration dependencies per experiment
-count_cfg_deps       = 3
+count_cfg_deps       = args.deps
 
 # List of all configuration Facts
 cfgs = []
