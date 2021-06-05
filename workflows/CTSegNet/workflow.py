@@ -1,6 +1,8 @@
 
 """
 CTSegNet WORKFLOW
+
+https://github.com/aniketkt/CTSegNet
 """
 
 import braid_db
