@@ -67,6 +67,4 @@ model.add_uri(uri)
 # Run model
 # Store inferences
 
-
-
 logger.info("WORKFLOW STOP")
