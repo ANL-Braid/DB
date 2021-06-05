@@ -17,7 +17,7 @@ logger = logging.getLogger("SLAC:")
 logger.info("WORKFLOW START")
 
 db_file = "braid-slac.db"
-DB = BraidDB(db_file, debug=False)
+DB = BraidDB(db_file, debug=True)
 
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way

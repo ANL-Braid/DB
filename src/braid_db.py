@@ -36,12 +36,14 @@ class BraidTagValue:
 
 class BraidDB:
 
-    def __init__(self, db_file, debug=True):
-
+    def __init__(self, db_file, log=False, debug=False):
         self.logger = logging.getLogger("BraidDB")
-        if debug: self.logger.setLevel(logging.DEBUG)
+        level = logging.WARN
+        if log:   level = logging.INFO
+        if debug: level = logging.DEBUG
+        self.logger.setLevel(level)
 
-        self.sql = BraidSQL(db_file, log=True, debug=True)
+        self.sql = BraidSQL(db_file, log, debug)
         self.sql.connect()
 
     def create(self):
