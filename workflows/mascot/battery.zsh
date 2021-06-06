@@ -8,9 +8,9 @@ if (( ${#N} )) {
 }
 
 CYCLES=100
-EXPERIMENT_COUNTS=( {10..30..10} )
-MODEL_COUNTS=(      {10..30..10} )
-TRIALS=( {1..2} )
+EXPERIMENT_COUNTS=( {10..100..10} )
+MODEL_COUNTS=(      {10..100..10} )
+TRIALS=( {1..5} )
 
 typeset -Z 2 EXPERIMENTS MODELS
 
@@ -37,6 +37,6 @@ do
       LOGS+=$LOG
     done
     printf "$A  " > $DATA
-    awk -f avg-times.awk $LOGS >> $DATA
+    awk -f avg-rates.awk $LOGS >> $DATA
   done
 done

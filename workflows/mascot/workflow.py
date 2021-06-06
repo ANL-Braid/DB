@@ -122,6 +122,9 @@ time_stop = time.time()
 if args.time:
     duration = time_stop - time_start
     print("mascot time: %0.4f" % duration)
+    size = DB.size()
+    print("mascot size: %i" % size)
+    print("mascot rate: %0.4f" % (size/duration))
 
 # For Emacs/Elpy
 # (elpy-rpc-pythonpath "../../src")
