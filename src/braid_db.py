@@ -37,6 +37,7 @@ class BraidTagValue:
 class BraidDB:
 
     def __init__(self, db_file, log=False, debug=False):
+        self.db_file = db_file
         self.logger = logging.getLogger("BraidDB")
         level = logging.WARN
         if log:   level = logging.INFO
@@ -51,7 +52,7 @@ class BraidDB:
         BRAID_HOME = os.getenv("BRAID_HOME")
         if BRAID_HOME is None:
             raise Exception("Set environment variable BRAID_HOME!")
-        print("creating tables: ")
+        print("creating DB tables: '%s'" % self.db_file)
         braid_sql = BRAID_HOME + "/src/braid-db.sql"
         with open(braid_sql) as fp:
             sqlcode = fp.read()
