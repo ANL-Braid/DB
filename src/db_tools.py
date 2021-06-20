@@ -26,6 +26,8 @@ class BraidSQL:
 
     def connect(self):
         self.conn = sqlite3.connect(self.db_file)
+        # self.conn.isolation_level = None
+        # self.conn.isolation_level = "EXCLUSIVE"
         self.cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA busy_timeout = 1000")
         return "OK"
@@ -47,11 +49,24 @@ class BraidSQL:
               .format(table, names_tpl, values_tpl)
         self.execute(cmd)
         rowid = str(self.cursor.lastrowid)
+        # self.conn.commit()
         return rowid
 
     def execute(self, cmd):
         self.debug(cmd)
         self.cursor.execute(cmd)
+        # import random
+        # import time
+        # while True:
+        #     try:
+        #         self.cursor.execute(cmd)
+        #         self.delay *= 0.9
+        #         break
+        #     except Exception as e:
+        #         self.log(str(e))
+        #         self.log("delay=%7.3f" % self.delay)
+        #         time.sleep(self.delay * random.random())
+        #         self.delay *= 4 * random.random()
 
     def executescript(self, cmds):
         self.cursor.executescript(cmds)
@@ -60,6 +75,7 @@ class BraidSQL:
         self.conn.commit()
 
     def close(self):
+        print("transaction: %b" % self.conn.in_transaction)
         self.autoclose = False
         self.conn.close()
 
@@ -72,9 +88,12 @@ class BraidSQL:
             self.logger.debug(message)
 
     def __del__(self):
+        self.debug("BraidSQL del()")
+        self.debug("transaction: %r" % self.conn.in_transaction)
         if not self.autoclose:
             return
-        if self.conn == None:
+        if self.conn is None:
+            self.debug("No connection!")
             return
         self.conn.commit()
         self.conn.close()
