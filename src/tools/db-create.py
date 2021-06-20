@@ -8,6 +8,8 @@ import argparse
 parser = argparse.ArgumentParser(description="Setup the Braid DB.")
 parser.add_argument("-B", action="store_true",
                     help="Move an existing DB to a backup")
+parser.add_argument("-v", action="store_true",
+                    help="Be verbose")
 parser.add_argument("db", action="store", help="specify DB file")
 args = parser.parse_args()
 argvars = vars(args)
@@ -26,12 +28,16 @@ def find_next_bak(filename):
     assert False
 
 
-if argvars["B"] is not None:
+if argvars["B"]:
     import os
     if os.path.exists(db_file):
         db_file_bak = find_next_bak(db_file)
         print("db-create.py: renaming %s -> %s" % (db_file, db_file_bak))
         os.rename(db_file, db_file_bak)
+
+import os
+if argvars["v"]:
+    print("db-create.py: creating: %s" % os.path.realpath(db_file))
 
 db = BraidDB(db_file)
 db.create()
