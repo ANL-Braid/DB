@@ -107,6 +107,7 @@ for model_id in range(0, count_models):
 
 # Loop over experiment cycles
 for i in range(0, count_cycles):
+    logger.info("cycle: %i" % i)
     for j in range(0, count_experiments):
         number = digits(3)
         name = "expt-%s" % number
