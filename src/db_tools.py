@@ -2,6 +2,7 @@
 import logging
 import sqlite3
 
+
 class BraidSQL:
     '''
     Sets up a wrapper around the SQL connection and cursor objects
@@ -11,7 +12,8 @@ class BraidSQL:
         self.db_file   = db_file
         self.conn = None
         self.autoclose = True
-        self.logger    = None # Default
+        self.logger    = None  # Default
+        # self.delay = 0.20    # For backoffs (WIP)
         if log or debug:
             logging.basicConfig(format="%(asctime)s %(name)-12s %(message)s",
                                 datefmt='%Y-%m-%d %H:%M:%S')
