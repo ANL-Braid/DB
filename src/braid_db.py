@@ -151,6 +151,23 @@ class BraidDB:
     def trace(self, msg):
         self.logger.log(level=logging.DEBUG-5, msg=msg)
 
+    def size(self):
+        '''
+        For performance measurements, etc.
+        Just the sum of the table sizes
+        '''
+        result = 0
+        tables = [ "records", "dependencies", "uris", "tags" ]
+        for table in tables:
+            self.sql.select(table, "count(record_id)")
+            row = self.sql.cursor.fetchone()
+            assert(row is not None)
+            count = int(row[0])
+            print("count: %s = %i" % (table, count))
+            result += count
+
+        return result
+
 
 serial = 1
 
