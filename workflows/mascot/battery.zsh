@@ -14,6 +14,24 @@ TRIALS=( {1..5} )
 
 typeset -Z 3 EXPERIMENTS MODELS
 
+cursor_line_reset()
+{
+  cursor_line_start
+  cursor_line_erase
+}
+
+cursor_line_start()
+{
+  local e='\033['
+  printf "${e}70D"
+}
+
+cursor_line_erase()
+{
+  local e='\033['
+  printf "${e}K"
+}
+
 foreach EXPERIMENTS in $EXPERIMENT_COUNTS
 do
   EXPERIMENTS=$(( EXPERIMENTS / PROCS ))
@@ -21,20 +39,19 @@ do
   do
     DATA=mascot-$EXPERIMENTS-$MODELS.data
     print "Running: $DATA"
-    # echo -ne > $LOG  # Truncate log
     LOGS=()
     for TRIAL in $TRIALS
     do
+      printf "TRIAL=$TRIAL"
       LOG=mascot-$EXPERIMENTS-$MODELS-$TRIAL.log
+      # echo -ne > $LOG  # Truncate log
       A=( --experiments $EXPERIMENTS
           --models $MODELS
           --configurations $MODELS )
-      {
-        print "FLAGS: $A"
-        ./workflow.sh -- $A --time
-        printf "\n\n"
-      } > $LOG
+      if [[ -f braid-mascot.db ]] rm braid-mascot.db
+      ./workflow.sh -- $A --time > $LOG
       LOGS+=$LOG
+      cursor_line_reset
     done
     printf "$A  " > $DATA
     awk -f avg-rates.awk $LOGS >> $DATA
