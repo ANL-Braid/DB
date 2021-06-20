@@ -14,11 +14,14 @@ def parse_args():
     import argparse
     parser = argparse.ArgumentParser(description=
                                      "Run a synthetic workflow")
-    parser.add_argument("--configurations", type=int, default=3,
+    parser.add_argument("--db", type=str,
+                        default='braid-mascot.db',
+                        help="DB file name")
+    parser.add_argument("--configurations", type=int, default=5,
                         help="Number of configurations")
     parser.add_argument("--experiments", type=int, default=3,
                         help="Number of experiments")
-    parser.add_argument("--cycles", type=int, default=1,
+    parser.add_argument("--cycles", type=int, default=5,
                         help="Number of experiment cycles")
     parser.add_argument("--uris", type=int, default=3,
                         help="Number of URIs per record")
@@ -50,7 +53,7 @@ logger.setLevel(level)
 
 logger.info("WORKFLOW START")
 
-db_file = "braid-mascot.db"
+db_file = args.db
 DB = BraidDB(db_file,
              log=(args.verbose>0),
              debug=(args.verbose>1))
