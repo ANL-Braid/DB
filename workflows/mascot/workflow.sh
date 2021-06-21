@@ -24,10 +24,8 @@ shift $(( OPTIND - 1 ))
 
 export PYTHONPATH=$BRAID_HOME/src
 
-cd $BRAID_HOME/workflows/mascot
-
 DB=braid-mascot.db
 
-$BRAID_HOME/bin/braid-db-create $BACKUP $DB
+$BRAID_HOME/bin/braid-db-create -v $BACKUP $DB
 
-python3 workflow.py $*
+python3 $BRAID_HOME/workflows/mascot/workflow.py $*
