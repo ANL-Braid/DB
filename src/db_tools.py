@@ -34,7 +34,7 @@ class BraidSQL:
 
     def select(self, table, what, where=None):
         ''' Do a SQL select '''
-        cmd = "select %s from %s" % (what, table);
+        cmd = "select %s from %s" % (what, table)
         if where is not None:
             cmd += " where "
             cmd += where
@@ -104,13 +104,16 @@ def q(s):
     """ Quote the given string """
     return "'" + str(s) + "'"
 
+
 def qL(L):
     """ Quote each list entry as a string """
     return map(q, L)
 
+
 def qA(*args):
     """ Quote each argument as a string """
     return map(q, args)
+
 
 def sql_tuple(L):
     """ Make the given list into a SQL-formatted tuple """
