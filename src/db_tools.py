@@ -15,7 +15,8 @@ class BraidSQL:
         self.logger    = None  # Default
         # self.delay = 0.20    # For backoffs (WIP)
         if log or debug:
-            logging.basicConfig(format="%(asctime)s %(name)-12s %(message)s",
+            fmt = "%(asctime)s %(name)-12s %(message)s"
+            logging.basicConfig(format=fmt,
                                 datefmt='%Y-%m-%d %H:%M:%S')
             self.logger = logging.getLogger("BraidSQL")
             if debug:
