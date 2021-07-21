@@ -4,9 +4,9 @@ from mpi4py import MPI
 
 class Server:
 
-    def __init__(self):
-        self.comm = MPI.COMM_WORLD
+    def __init__(self, comm):
         # rank = comm.Get_rank()
+        self.comm = comm
         self.size = self.comm.Get_size()
         self.workers = self.size - 1
 

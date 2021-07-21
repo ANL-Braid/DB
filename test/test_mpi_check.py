@@ -10,9 +10,9 @@ size = comm.Get_size()
 
 if rank == 0:
     print("test_mpi_check ...")
-    server = Server()
+    server = Server(comm)
     server.check()
     print("test_mpi_check: OK")
 else:
-    client = Client()
+    client = Client(comm)
     client.check()
