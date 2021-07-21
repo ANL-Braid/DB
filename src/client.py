@@ -11,7 +11,6 @@ class Client:
     def check(self):
         print("client: start ...")
         self.comm.send("CLIENT:%i" % self.rank, dest=0)
-        print("client: start ...")
         msg = self.comm.recv(source=0)
         print("client: received: " + msg)
         print("client: stop ...")
