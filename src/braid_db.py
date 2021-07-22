@@ -36,19 +36,27 @@ class BraidTagValue:
 
 class BraidDB:
 
-    def __init__(self, db_file, log=False, debug=False):
+    def __init__(self, db_file, log=False, debug=False, mpi=False):
         self.db_file = db_file
         self.logger = logging.getLogger("BraidDB")
         level = logging.WARN
         if log:   level = logging.INFO
         if debug: level = logging.DEBUG
         self.logger.setLevel(level)
+        self.mpi = mpi
 
-        self.sql = BraidSQL(db_file, log, debug)
+        if not self.mpi:
+            self.sql = BraidSQL(db_file, log, debug)
+        else:
+            from db_tools_mpi import BraidSQL_MPI
+            self.sql = BraidSQL_MPI(db_file, log, debug)
         self.sql.connect()
 
     def create(self):
         ''' Set up the tables defined in the SQL file '''
+        if self.mpi:
+            if self.sql.rank != 0:
+                return
         BRAID_HOME = os.getenv("BRAID_HOME")
         if BRAID_HOME is None:
             raise Exception("Set environment variable BRAID_HOME!")
