@@ -1,0 +1,8 @@
+
+Start the server:
+
+ python3 -m pip install funcx_endpoint
+ funcx-endpoint configure dunedin
+ funcx-endpoint start dunedin
+ funcx-endpoint list
+ funcx-endpoint stop dunedin
