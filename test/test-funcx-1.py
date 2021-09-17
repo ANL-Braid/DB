@@ -10,11 +10,13 @@ from funcx.utils.errors import TaskPending
 # TUTOR = '4b116d3c-1703-4f8f-9f6f-39921e5864df'
 DUNEDIN = '9ea962c1-059e-49e4-a605-bcb82d76dde8'
 
-F_id = "353e37a8-56c6-4b74-8d4c-356bcf51dc1d"
+F_id = "85ccbd03-de4a-4751-908c-73bfbedb70ed"
 
 fxc = FuncXClient()
 
-handle = fxc.run(endpoint_id=DUNEDIN, function_id=F_id)  # TUTOR
+# handle = fxc.run(endpoint_id=DUNEDIN, function_id=F_id)
+handle = fxc.run("name1", ["uri1", "uri2"],
+                 endpoint_id=DUNEDIN, function_id=F_id)
 print("handle: " + str(handle))
 
 delay = 1
