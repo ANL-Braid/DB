@@ -1,12 +1,9 @@
-
 # DB FUNC
 # Braid DataBase Functional interface
 
-from pprint import pprint
-
 from funcx.sdk.client import FuncXClient
 
-from braid_db import BraidDB, BraidFact
+from braid_db import BraidDB
 
 
 def funcx_register():
@@ -34,7 +31,9 @@ def insert_fact(name, uris):
 
 
 def F():
-    import os, platform
+    import os
+    import platform
+
     return "Hello World: " + str(os.getcwd()) + " " + str(platform.uname())
 
 
@@ -46,6 +45,7 @@ def get_function(L, token):
     @return: The string function UUID, or None if nothing was found
     """
     import re
+
     hits = []  # List of functions that match the token
     for index, entry in enumerate(L):
         description = entry["description"]
@@ -58,24 +58,24 @@ def get_function(L, token):
         timestamp = m[1]
         print(timestamp + " " + uuid)
         hits.append([timestamp, index])
-    print("found %i matching functions" % len(hits))
+    print(f"found {len(hits)} matching functions")
     if len(hits) == 0:
         return None
     hits.sort()  # Sort the list by timestamp
     latest = hits[-1][1]
-    print("latest: %i" % latest)
+    print(f"latest: {latest}")
     function_dict = L[latest]
     return function_dict["function_uuid"]
 
 
 def register_functions(fxc):
     from datetime import datetime
+
     timestamp = datetime.now()
     timestamp_string = timestamp.strftime("date=%Y-%m-%d_%H:%M:%S")
     description = "Braid-DB.insert_fact " + timestamp_string
-    F_id = fxc.register_function(insert_fact,
-                                 description=description)
-    print("registered: insert_fact: " + F_id)
+    F_id = fxc.register_function(insert_fact, description=description)
+    print(f"registered: insert_fact: {F_id}")
 
 
 def main():

@@ -158,9 +158,15 @@ https://raw.githubusercontent.com/aniketkt/CTSegNet/master/notebooks/CTSegNet_co
 
 == Getting started
 
-* No software beyond Python is required
-  (a SQLite API is part of the Python standard library)
-* See the test cases in the test directory
+Note: Additional docs forthcoming to help get setup in a (mini)conda based environment.
+
+* Start by installing poetry per https://python-poetry.org/docs/#osx--linux--bashonwindows-install-instructions
+
+* Then, run `poetry install` to setup a local virtual environment from which to run other applications
+* Run, `poetry run pre-commit install` to setup pre-commit hooks for code formatting, lining, etc.
+* Tests can be run using scripts in the `tests` directory.
+  * Additional testing based on `pytest` is forthcoming
+
 
 == Developer notes
 
@@ -189,3 +195,5 @@ Tests are run nightly at:
 
 * https://jenkins-ci.cels.anl.gov/job/Braid-DB-Core
 * https://jenkins-ci.cels.anl.gov/job/Braid-DB-Workflows
+
+They are also run via Github Actions for each push or pull request against the origin repo.
