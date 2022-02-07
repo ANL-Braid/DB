@@ -1,0 +1,51 @@
+[tool.poetry]
+name = "braid-db"
+version = "0.1.0"
+description = "The Braid Project Provenance DB"
+authors = ["Justin Wozniak <woz@anl.gov>",
+          "Jim Pruyne <pruyne@uchicago.edu>"]
+
+packages = [
+         {include = "braid_db", from="src"},
+         {include = "workflows"}
+]
+
+[tool.poetry.scripts]
+db-create = "braid_db.tools.db_create:main"
+db-print = "braid_db.tools.db_print:main"
+workflow-SLAC = "workflows.SLAC.workflow:main"
+workflow-BraggNN = "workflows.BraggNN.workflow:main"
+workflow-CTSegNet = "workflows.CTSegNet.workflow:main"
+workflow-SSX = "workflows.SSX.workflow:main"
+
+
+[tool.poetry.dependencies]
+python = ">=3.6.2,<3.7"
+# python = "^3.8"
+mpi4py = "^3.1.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+black = "^22.1.0"
+pre-commit = "^2.17.0"
+isort = "^5.10.1"
+mypy = "^0.931"
+importmagic = "^0.1.7"
+epc = "^0.0.5"
+
+[tool.isort]
+profile = "black"
+line_length = 79
+src_paths = ["src"]
+
+[tool.mypy]
+python_version = 3.8
+platform = "linux"
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 79
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

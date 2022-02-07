@@ -1,14 +1,10 @@
-
 """
 SSX WORKFLOW
 """
 
-import os
-
-import braid_db
-from braid_db import *
 import logging
 
+from braid_db import BraidData, BraidDB, BraidFact, BraidModel, digits
 
 logger = None
 logger = logging.getLogger("SSX:")
@@ -17,6 +13,7 @@ logger.info("WORKFLOW START")
 
 db_file = "braid-ssx.db"
 DB = BraidDB(db_file, debug=False)
+DB.create()
 
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
@@ -26,10 +23,10 @@ DB = BraidDB(db_file, debug=False)
 # - Log the prime.phil file
 # - Log the structure from prime/refinement
 
-# TODO: Consider whether datablocks should be logged. 
+# TODO: Consider whether datablocks should be logged.
 
 # Create configuration object
-number = braid_db.digits(3)
+number = digits(3)
 name = f"beamline_{number}"
 phil_name = f"process_{number}"
 cfg = BraidFact(db=DB, name=name)
@@ -77,3 +74,11 @@ structure_uri = f"login.host:/home/user1/{name}.mkv"
 structure.add_uri(structure_uri)
 
 logger.info("WORKFLOW STOP")
+
+
+def main():
+    pass  # Just a placeholder for the entry target of scripts
+
+
+if __name__ == "__main__":
+    main()

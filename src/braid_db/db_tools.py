@@ -1,32 +1,21 @@
-
 import logging
 import sqlite3
 
-from mpi4py import MPI
-from server import Server
-from client import Client
 
-
-class BraidSQL_MPI:
-    '''
+class BraidSQL:
+    """
     Sets up a wrapper around the SQL connection and cursor objects
-    '''
+    """
 
     def __init__(self, db_file, log=False, debug=False):
         self.db_file = db_file
         self.conn = None
         self.autoclose = True
-
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
-
-        self.logger    = None  # Default
+        self.logger = None  # Default
         # self.delay = 0.20    # For backoffs (WIP)
         if log or debug:
             fmt = "%(asctime)s %(name)-12s %(message)s"
-            logging.basicConfig(format=fmt,
-                                datefmt='%Y-%m-%d %H:%M:%S')
+            logging.basicConfig(format=fmt, datefmt="%Y-%m-%d %H:%M:%S")
             self.logger = logging.getLogger("BraidSQL")
             if debug:
                 self.logger.setLevel(logging.DEBUG)
@@ -35,23 +24,15 @@ class BraidSQL_MPI:
                 self.logger.setLevel(logging.INFO)
 
     def connect(self):
-        print("connect")
-        if self.rank == 0:
-            self.server = Server(self.comm)
-            self.conn = sqlite3.connect(self.db_file)
-            self.cursor = self.conn.cursor()
-            self.cursor.execute("PRAGMA busy_timeout = 1000")
-            self.server.check()
-            # self.conn.isolation_level = None
-            # self.conn.isolation_level = "EXCLUSIVE"
-        else:
-            self.client = Client(self.comm)
-            self.client.check()
-
+        self.conn = sqlite3.connect(self.db_file)
+        # self.conn.isolation_level = None
+        # self.conn.isolation_level = "EXCLUSIVE"
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA busy_timeout = 1000")
         return "OK"
 
     def select(self, table, what, where=None):
-        ''' Do a SQL select '''
+        """Do a SQL select"""
         cmd = "select %s from %s" % (what, table)
         if where is not None:
             cmd += " where "
@@ -60,11 +41,12 @@ class BraidSQL_MPI:
         self.execute(cmd)
 
     def insert(self, table, names, values):
-        """ Do a SQL insert """
-        names_tpl  = sql_tuple(names)
+        """Do a SQL insert"""
+        names_tpl = sql_tuple(names)
         values_tpl = sql_tuple(values)
-        cmd = "insert into {} {} values {};"\
-              .format(table, names_tpl, values_tpl)
+        cmd = "insert into {} {} values {};".format(
+            table, names_tpl, values_tpl
+        )
         self.execute(cmd)
         rowid = str(self.cursor.lastrowid)
         # self.conn.commit()
@@ -93,7 +75,7 @@ class BraidSQL_MPI:
         self.conn.commit()
 
     def close(self):
-        print("transaction: %b" % self.conn.in_transaction)
+        print(f"transaction: {self.conn.in_transaction}")
         self.autoclose = False
         self.conn.close()
 
@@ -107,36 +89,32 @@ class BraidSQL_MPI:
 
     def __del__(self):
         self.debug("BraidSQL del()")
+        self.debug(f"transaction: {self.conn.in_transaction}")
         if not self.autoclose:
             return
         if self.conn is None:
             self.debug("No connection!")
             return
-        self.debug("transaction: %r" % self.conn.in_transaction)
         self.conn.commit()
         self.conn.close()
         self.log("DB auto-closed.")
 
 
 def q(s):
-    """ Quote the given string """
-    return "'" + str(s) + "'"
+    """Quote the given string"""
+    return f"'{s}'"
 
 
 def qL(L):
-    """ Quote each list entry as a string """
+    """Quote each list entry as a string"""
     return map(q, L)
 
 
 def qA(*args):
-    """ Quote each argument as a string """
+    """Quote each argument as a string"""
     return map(q, args)
 
 
 def sql_tuple(L):
-    """ Make the given list into a SQL-formatted tuple """
-    result = ""
-    result += "("
-    result += ",".join(L)
-    result += ")"
-    return result
+    """Make the given list into a SQL-formatted tuple"""
+    return f"({','.join(L)})"

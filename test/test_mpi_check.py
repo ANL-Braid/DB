@@ -1,8 +1,7 @@
-
 from mpi4py import MPI
-from server import Server
-from client import Client
 
+from client import Client
+from server import Server
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()

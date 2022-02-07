@@ -1,4 +1,3 @@
-
 """
 MASCOT WORKFLOW
 """
@@ -7,33 +6,50 @@ import logging
 import random
 import time
 
-from braid_db import *
+from braid_db import BraidData, BraidDB, BraidFact, BraidModel, digits
 
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description=
-                                     "Run a synthetic workflow")
-    parser.add_argument("--db", type=str,
-                        default='braid-mascot.db',
-                        help="DB file name")
-    parser.add_argument("--configurations", type=int, default=5,
-                        help="Number of configurations")
-    parser.add_argument("--experiments", type=int, default=3,
-                        help="Number of experiments")
-    parser.add_argument("--cycles", type=int, default=5,
-                        help="Number of experiment cycles")
-    parser.add_argument("--uris", type=int, default=3,
-                        help="Number of URIs per record")
-    parser.add_argument("--deps", type=int, default=3,
-                        help="""Number of configuration dependencies
-                                per experiment""")
-    parser.add_argument("--models", type=int, default=3,
-                        help="Number of models")
-    parser.add_argument("--time", default=False, action="store_true",
-                        help="Report run time")
-    parser.add_argument("--verbose", type=int, default=0,
-                        help="Logger verbosity: 0=least, 1, 2=most")
+
+    parser = argparse.ArgumentParser(description="Run a synthetic workflow")
+    parser.add_argument(
+        "--db", type=str, default="braid-mascot.db", help="DB file name"
+    )
+    parser.add_argument(
+        "--configurations",
+        type=int,
+        default=5,
+        help="Number of configurations",
+    )
+    parser.add_argument(
+        "--experiments", type=int, default=3, help="Number of experiments"
+    )
+    parser.add_argument(
+        "--cycles", type=int, default=5, help="Number of experiment cycles"
+    )
+    parser.add_argument(
+        "--uris", type=int, default=3, help="Number of URIs per record"
+    )
+    parser.add_argument(
+        "--deps",
+        type=int,
+        default=3,
+        help="""Number of configuration dependencies
+                                per experiment""",
+    )
+    parser.add_argument(
+        "--models", type=int, default=3, help="Number of models"
+    )
+    parser.add_argument(
+        "--time", default=False, action="store_true", help="Report run time"
+    )
+    parser.add_argument(
+        "--verbose",
+        type=int,
+        default=0,
+        help="Logger verbosity: 0=least, 1, 2=most",
+    )
 
     args = parser.parse_args()
     return args
@@ -54,9 +70,7 @@ logger.setLevel(level)
 logger.info("WORKFLOW START")
 
 db_file = args.db
-DB = BraidDB(db_file,
-             log=(args.verbose>0),
-             debug=(args.verbose>1))
+DB = BraidDB(db_file, log=(args.verbose > 0), debug=(args.verbose > 1))
 
 # WORKFLOW OUTLINE
 # ... Create dependency linkages along the way
@@ -64,19 +78,21 @@ DB = BraidDB(db_file,
 # Number of configurations
 count_configurations = args.configurations
 # Number of experiments per cycle
-count_experiments    = args.experiments
+count_experiments = args.experiments
 # Number of experiment cycles
-count_cycles         = args.cycles
+count_cycles = args.cycles
 # URIs per Record
-count_uris           = args.uris
+count_uris = args.uris
 # Number of configuration dependencies per experiment
-count_cfg_deps       = args.deps
-count_models         = args.models
+count_cfg_deps = args.deps
+count_models = args.models
 
 if count_models > count_configurations:
-    logger.fatal("mascot: FATAL: " +
-                 "configurations=%i must be >= models=%i" %
-                 (count_configurations, count_models))
+    logger.fatal(
+        "mascot: FATAL: "
+        + "configurations=%i must be >= models=%i"
+        % (count_configurations, count_models)
+    )
     exit(1)
 
 # List of all configuration Facts
@@ -128,7 +144,7 @@ if args.time:
     print("mascot time: %0.4f" % duration)
     size = DB.size()
     print("mascot size: %i" % size)
-    print("mascot rate: %0.4f" % (size/duration))
+    print("mascot rate: %0.4f" % (size / duration))
 
 # For Emacs/Elpy
 # (elpy-rpc-pythonpath "../../src")

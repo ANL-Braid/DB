@@ -1,9 +1,4 @@
-
-from mpi4py import MPI
-
-
 class Client:
-
     def __init__(self, comm):
         self.comm = comm
         self.rank = self.comm.Get_rank()

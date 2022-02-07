@@ -1,31 +1,34 @@
-
 # BRAID DB
 
 import datetime
 import logging
 import os
+from enum import Enum, unique
+from pathlib import Path
+from sqlite3 import OperationalError
 
-from db_tools import BraidSQL, q, qA
+from .db_tools import BraidSQL, q, qA
+
+SCHEMA_FILE_NAME = "braid-db.sql"
+DEFAULT_SCHEMA_FILE_PATH = Path(__file__).parent / SCHEMA_FILE_NAME
 
 
 def digits(c):
-    ''' Return c random digits (for random names) '''
+    """Return c random digits (for random names)"""
     import random
-    n = random.randint(0, 10**c)
+
+    n = random.randint(0, 10 ** c)
     s = "%0*i" % (c, n)
     return s
-
-
-from enum import Enum, unique
 
 
 @unique
 class BraidTagType(Enum):
     # Cf braid-db.sql
-    NONE    = 0
-    STRING  = 1
+    NONE = 0
+    STRING = 1
     INTEGER = 2
-    FLOAT   = 3
+    FLOAT = 3
 
 
 class BraidTagValue:
@@ -35,13 +38,14 @@ class BraidTagValue:
 
 
 class BraidDB:
-
     def __init__(self, db_file, log=False, debug=False, mpi=False):
         self.db_file = db_file
         self.logger = logging.getLogger("BraidDB")
         level = logging.WARN
-        if log:   level = logging.INFO
-        if debug: level = logging.DEBUG
+        if log:
+            level = logging.INFO
+        if debug:
+            level = logging.DEBUG
         self.logger.setLevel(level)
         self.mpi = mpi
 
@@ -49,23 +53,28 @@ class BraidDB:
             self.sql = BraidSQL(db_file, log, debug)
         else:
             from db_tools_mpi import BraidSQL_MPI
+
             self.sql = BraidSQL_MPI(db_file, log, debug)
         self.sql.connect()
 
     def create(self):
-        ''' Set up the tables defined in the SQL file '''
+        """Set up the tables defined in the SQL file"""
         if self.mpi:
             if self.sql.rank != 0:
                 return
         BRAID_HOME = os.getenv("BRAID_HOME")
         if BRAID_HOME is None:
-            raise Exception("Set environment variable BRAID_HOME!")
-        print("creating DB tables: '%s'" % self.db_file)
-        braid_sql = BRAID_HOME + "/src/braid-db.sql"
+            braid_sql = DEFAULT_SCHEMA_FILE_PATH
+        else:
+            braid_sql = f"{BRAID_HOME}/src/braid_db/braid-db.sql"
+        print(f"creating DB tables: '{self.db_file}'")
         with open(braid_sql) as fp:
             sqlcode = fp.read()
-            self.sql.executescript(sqlcode)
-            self.sql.commit()
+            try:
+                self.sql.executescript(sqlcode)
+                self.sql.commit()
+            except OperationalError as oe:
+                self.logger.info(f"Got error creating DB: {str(oe)}")
 
     def insert(self, record):
         pass
@@ -75,7 +84,8 @@ class BraidDB:
         records = {}
         while True:
             row = self.sql.cursor.fetchone()
-            if row is None: break
+            if row is None:
+                break
             (record_id, name, time) = row[0:3]
             text = "%5s : %-16s %s" % ("[%i]" % record_id, name, time)
             records[record_id] = text
@@ -95,58 +105,63 @@ class BraidDB:
             print(records[record_id])
 
     def extract_tags(self, records):
-        ''' Append tags data to records '''
+        """Append tags data to records"""
+        tags = {}  # In case there are no records
         for record_id in list(records.keys()):
             tags = self.get_tags(record_id)
             text = records[record_id]
         for key in tags.keys():
             text += "\n\t\t\t TAG: "
-            if tags[key].type_ == BraidTagType.INTEGER or \
-               tags[key].type_ == BraidTagType.FLOAT:
-                text += "%s = %s"   % (key, tags[key].value)
+            if (
+                tags[key].type_ == BraidTagType.INTEGER
+                or tags[key].type_ == BraidTagType.FLOAT
+            ):
+                text += "%s = %s" % (key, tags[key].value)
             else:
                 text += "%s = '%s'" % (key, tags[key].value)
             records[record_id] = text
 
     def get_dependencies(self, record_id):
-        '''
+        """
         return list of integers
-        '''
+        """
         self.trace("DB.get_dependencies(%i) ..." % record_id)
-        self.sql.select("dependencies", "dependency",
-                        "record_id=%i" % record_id)
+        self.sql.select(
+            "dependencies", "dependency", "record_id=%i" % record_id
+        )
         deps = []
         while True:
             row = self.sql.cursor.fetchone()
-            if row is None: break
+            if row is None:
+                break
             deps.append(row[0])
         return deps
 
     def get_uris(self, record_id):
-        '''
+        """
         return list of string URIs
-        '''
+        """
         self.trace("DB.get_uris(%i) ..." % record_id)
-        self.sql.select("uris", "uri",
-                        "record_id=%i" % record_id)
+        self.sql.select("uris", "uri", "record_id=%i" % record_id)
         uris = []
         while True:
             row = self.sql.cursor.fetchone()
-            if row is None: break
+            if row is None:
+                break
             uris.append(row[0])
         return uris
 
     def get_tags(self, record_id):
-        '''
+        """
         return dict of string->BraidTagValue key->value pairs
-        '''
-        self.trace("DB.get_tags(%i) ..." % record_id)
-        self.sql.select("tags", "key, value, type",
-                        "record_id=%i" % record_id)
+        """
+        self.trace(f"DB.get_tags({record_id}) ...")
+        self.sql.select("tags", "key, value, type", f"record_id={record_id}")
         tags = {}
         while True:
             row = self.sql.cursor.fetchone()
-            if row is None: break
+            if row is None:
+                break
             (key, v, t) = row[0:3]
             type_ = BraidTagType(t)
             value = BraidTagValue(v, type_)
@@ -157,19 +172,19 @@ class BraidDB:
         self.logger.debug(msg)
 
     def trace(self, msg):
-        self.logger.log(level=logging.DEBUG-5, msg=msg)
+        self.logger.log(level=logging.DEBUG - 5, msg=msg)
 
     def size(self):
-        '''
+        """
         For performance measurements, etc.
         Just the sum of the table sizes
-        '''
+        """
         result = 0
-        tables = [ "records", "dependencies", "uris", "tags" ]
+        tables = ["records", "dependencies", "uris", "tags"]
         for table in tables:
             self.sql.select(table, "count(record_id)")
             row = self.sql.cursor.fetchone()
-            assert(row is not None)
+            assert row is not None
             count = int(row[0])
             print("count: %s = %i" % (table, count))
             result += count
@@ -188,7 +203,6 @@ def make_serial():
 
 
 class BraidRecord:
-
     def __init__(self, db=None, name=None, timestamp=None, debug=True):
         self.serial = make_serial()
         self.db = db
@@ -201,7 +215,8 @@ class BraidRecord:
         self.record_id = None
 
         self.logger = logging.getLogger("BraidRecord")
-        if debug: self.logger.setLevel(logging.DEBUG)
+        if debug:
+            self.logger.setLevel(logging.DEBUG)
 
         if timestamp is None:
             self.timestamp = datetime.datetime.now()
@@ -209,30 +224,36 @@ class BraidRecord:
             self.timestamp = timestamp
 
     def add_dependency(self, record):
-        ''' record: a BraidRecord '''
+        """record: a BraidRecord"""
         self.dependencies.append(record)
-        self.db.sql.insert("dependencies", ["record_id", "dependency"],
-                           [str(self.record_id), str(record.record_id)])
+        self.db.sql.insert(
+            "dependencies",
+            ["record_id", "dependency"],
+            [str(self.record_id), str(record.record_id)],
+        )
 
     def add_uri(self, uri):
-        ''' uri: a string URI '''
+        """uri: a string URI"""
         self.uris.append(uri)
-        self.db.sql.insert("uris", ["record_id", "uri"],
-                           [str(self.record_id), q(uri)])
+        self.db.sql.insert(
+            "uris", ["record_id", "uri"], [str(self.record_id), q(uri)]
+        )
 
     def add_tag(self, key, value, type_=BraidTagType.STRING):
-        ''' key:   a string key name
-            value: a string value
-        '''
+        """key:   a string key name
+        value: a string value
+        """
         if not isinstance(type_, BraidTagType):
-            raise Exception("type must be a BraidTagType! " +
-                            "received: '%s' type: %s" % (
-                                str(type_), type(type_)))
+            raise Exception(
+                "type must be a BraidTagType! "
+                + "received: '%s' type: %s" % (str(type_), type(type_))
+            )
         self.tags[key] = value
-        self.db.sql.insert("tags",
-                           ["record_id", "key", "value", "type"],
-                           [str(self.record_id),
-                            q(key), q(value), str(type_.value)])
+        self.db.sql.insert(
+            "tags",
+            ["record_id", "key", "value", "type"],
+            [str(self.record_id), q(key), q(value), str(type_.value)],
+        )
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
@@ -241,7 +262,7 @@ class BraidRecord:
         if self.name is None:
             return "BraidRecord" % self.uri
         else:
-            return "BraidRecord(\"%s\")" % self.name
+            return 'BraidRecord("%s")' % self.name
 
     def debug(self, msg):
         self.logger.debug(msg)
@@ -249,53 +270,57 @@ class BraidRecord:
 
 class BraidFact(BraidRecord):
 
-    ''' Examples: pre-existing data, software, etc. '''
+    """Examples: pre-existing data, software, etc."""
 
     def __init__(self, db=None, name=None):
         super().__init__(db=db, name=name)
 
     def add_dependency(self, record):
-        ''' record: a BraidRecord '''
+        """record: a BraidRecord"""
         raise Exception("BraidFacts do not have dependencies!")
 
     def store(self):
-        self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                            qA(self.name, self.strftime()))
+        self.record_id = self.db.sql.insert(
+            "records", ["name", "time"], qA(self.name, self.strftime())
+        )
         self.debug("stored Fact: <%s>" % self.record_id)
         return self.record_id
 
 
 class BraidData(BraidRecord):
 
-    ''' Examples: data in the system with dependencies:
-        Simulation outputs, data analyses, experiment outputs
-    '''
+    """Examples: data in the system with dependencies:
+    Simulation outputs, data analyses, experiment outputs
+    """
 
     def __init__(self, db=None, name=None):
         super().__init__(db=db, name=name)
 
     def store(self):
-        self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                            qA(self.name, self.strftime()))
+        self.record_id = self.db.sql.insert(
+            "records", ["name", "time"], qA(self.name, self.strftime())
+        )
         self.debug("stored Data: <%s>" % self.record_id)
         return self.record_id
 
 
 class BraidModel(BraidRecord):
 
-    ''' Examples: an ML model that is trained on BraidRecords '''
+    """Examples: an ML model that is trained on BraidRecords"""
 
     def __init__(self, db=None, name=None):
         super().__init__(db=db, name=name)
 
     def update(self, record):
-        ''' record: a BraidRecord '''
+        """record: a BraidRecord"""
         super().add_dependency(record)
 
     def store(self):
-        self.record_id = self.db.sql.insert("records", ["name", "time"],
-                                            qA(self.name, self.strftime()))
+        self.record_id = self.db.sql.insert(
+            "records", ["name", "time"], qA(self.name, self.strftime())
+        )
         self.debug("stored Model: <%s>" % self.record_id)
         return self.record_id
+
 
 # class Braid

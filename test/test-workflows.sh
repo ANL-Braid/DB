@@ -9,18 +9,17 @@ BRAID=$( readlink --canonicalize $THIS/.. )
 echo
 echo "TEST-WORKFLOWS ..."
 
+# for WORKFLOW in SSX
 for WORKFLOW in SLAC BraggNN CTSegNet SSX
 do
-  echo
-  echo "TEST WORKFLOW: $WORKFLOW ..."
-  (
-    set -x
-    pwd
-    cd $BRAID/workflows/$WORKFLOW
-    ./workflow.sh -B
-  )
-  echo "TEST WORKFLOW: $WORKFLOW OK."
+    echo poetry running workflow-$WORKFLOW
+    (
+        set -x
+        cd $BRAID/workflows/$WORKFLOW
+        poetry run workflow-$WORKFLOW
+    )
 done
+
 
 echo
 echo "TEST-WORKFLOWS: OK."
