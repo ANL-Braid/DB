@@ -4,6 +4,8 @@ set -eu
 THIS=$(  readlink --canonicalize $( dirname $0 ) )
 export BRAID_HOME=$( readlink --canonicalize $THIS/.. )
 
+source $BRAID_HOME/.venv/bin/activate
+
 if (( ${#} < 1 ))
 then
   echo "test.sh: Provide a test!"
