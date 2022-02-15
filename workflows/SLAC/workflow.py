@@ -66,6 +66,8 @@ model.add_uri(uri)
 
 logger.info("WORKFLOW STOP")
 
+DB.print()
+
 
 def main():
     pass

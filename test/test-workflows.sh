@@ -5,6 +5,9 @@ set -eu
 
 THIS=$(  readlink --canonicalize $( dirname $0 ) )
 BRAID=$( readlink --canonicalize $THIS/.. )
+VENV_BIN=$BRAID/.venv/bin
+
+source $VENV_BIN/activate
 
 echo
 echo "TEST-WORKFLOWS ..."
@@ -16,7 +19,7 @@ do
     (
         set -x
         cd $BRAID/workflows/$WORKFLOW
-        poetry run workflow-$WORKFLOW
+        $VENV_BIN/workflow-$WORKFLOW
     )
 done
 

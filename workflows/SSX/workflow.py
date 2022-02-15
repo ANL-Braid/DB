@@ -75,6 +75,8 @@ structure.add_uri(structure_uri)
 
 logger.info("WORKFLOW STOP")
 
+DB.print()
+
 
 def main():
     pass  # Just a placeholder for the entry target of scripts

@@ -2,15 +2,26 @@
 
 import datetime
 import logging
-import os
 from enum import Enum, unique
 from pathlib import Path
-from sqlite3 import OperationalError
+from typing import Dict, Iterable, List, Optional, TypeVar
 
-from .db_tools import BraidSQL, q, qA
+from sqlalchemy.exc import ArgumentError
+from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel.sql.expression import Select
+
+from .models import (
+    BraidDependencyModel,
+    BraidModelBase,
+    BraidRecordModel,
+    BraidTagsModel,
+    BraidUrisModel,
+)
 
 SCHEMA_FILE_NAME = "braid-db.sql"
 DEFAULT_SCHEMA_FILE_PATH = Path(__file__).parent / SCHEMA_FILE_NAME
+
+SQLITE_URL_PREFIX = "sqlite:///"
 
 
 def digits(c):
@@ -31,6 +42,9 @@ class BraidTagType(Enum):
     FLOAT = 3
 
 
+BraidModelTypeVar = TypeVar("BraidModelTypeVar", bound=BraidModelBase)
+
+
 class BraidTagValue:
     def __init__(self, value, type_):
         self.value = value
@@ -38,8 +52,10 @@ class BraidTagValue:
 
 
 class BraidDB:
-    def __init__(self, db_file, log=False, debug=False, mpi=False):
-        self.db_file = db_file
+    def __init__(
+        self, db_url: str, log=False, debug=False, mpi=False, echo_sql=False
+    ):
+        self.db_url = db_url
         self.logger = logging.getLogger("BraidDB")
         level = logging.WARN
         if log:
@@ -50,59 +66,94 @@ class BraidDB:
         self.mpi = mpi
 
         if not self.mpi:
-            self.sql = BraidSQL(db_file, log, debug)
+            self.sql = self  # Backward compatible with clients that access the
+            # sql property directly. To be deprecated.
         else:
             from db_tools_mpi import BraidSQL_MPI
 
-            self.sql = BraidSQL_MPI(db_file, log, debug)
-        self.sql.connect()
+            self.sql = BraidSQL_MPI(db_url, log, debug)
+        self.engine = self.create_engine(db_url, echo_sql=echo_sql)
+
+    def create_engine(self, db_url: str, echo_sql=False):
+        try:
+            return create_engine(db_url, echo=echo_sql)
+        except ArgumentError:
+            return create_engine(SQLITE_URL_PREFIX + db_url, echo=echo_sql)
 
     def create(self):
         """Set up the tables defined in the SQL file"""
-        if self.mpi:
-            if self.sql.rank != 0:
-                return
-        BRAID_HOME = os.getenv("BRAID_HOME")
-        if BRAID_HOME is None:
-            braid_sql = DEFAULT_SCHEMA_FILE_PATH
+        if self.mpi and self.sql.rank != 0:
+            return
+        SQLModel.metadata.create_all(self.engine)
+
+    def run_query(self, stmt: Select, session: Optional[Session] = None):
+        if session is not None:
+            return session.exec(stmt)
         else:
-            braid_sql = f"{BRAID_HOME}/src/braid_db/braid-db.sql"
-        print(f"creating DB tables: '{self.db_file}'")
-        with open(braid_sql) as fp:
-            sqlcode = fp.read()
-            try:
-                self.sql.executescript(sqlcode)
-                self.sql.commit()
-            except OperationalError as oe:
-                self.logger.info(f"Got error creating DB: {str(oe)}")
+            with Session(self.engine) as session:
+                return session.exec(stmt)
+
+    def query_all(self, stmt: Select, session: Optional[Session] = None):
+        return self.run_query(stmt, session=session)
+
+    def query_one_or_none(
+        self, stmt: Select, session: Optional[Session] = None
+    ):
+        return self.run_query(stmt, session=session).one_or_none()
+
+    def get_record_model_by_id(
+        self, record_id: int, session: Optional[Session] = None
+    ) -> Optional[BraidRecordModel]:
+        return self.query_one_or_none(
+            select(BraidRecordModel).where(
+                BraidRecordModel.record_id == record_id
+            ),
+            session=session,
+        )
 
     def insert(self, record):
         pass
 
-    def print(self):
-        self.sql.select("records", "*")
-        records = {}
-        while True:
-            row = self.sql.cursor.fetchone()
-            if row is None:
-                break
-            (record_id, name, time) = row[0:3]
-            text = "%5s : %-16s %s" % ("[%i]" % record_id, name, time)
-            records[record_id] = text
-        for record_id in list(records.keys()):
-            deps = self.get_dependencies(record_id)
-            text = records[record_id] + " <- " + str(deps)
-            records[record_id] = text
-        for record_id in list(records.keys()):
-            uris = self.get_uris(record_id)
-            text = records[record_id]
-            for uri in uris:
-                text += "\n\t\t\t URI: "
-                text += uri
-            records[record_id] = text
-        self.extract_tags(records)
-        for record_id in list(records.keys()):
-            print(records[record_id])
+    def add_model(
+        self,
+        model: BraidModelBase,
+        session: Optional[Session] = None,
+    ) -> BraidModelBase:
+        self.trace(f"Adding model {model} to session {str(session)}")
+        if session is not None:
+            session.add(model)
+            return model
+        else:
+            with Session(self.engine, expire_on_commit=False) as session:
+                session.add(model)
+                session.commit()
+                return model
+
+    def print(self, session: Optional[Session] = None):
+        with Session(self.engine) as session:
+            records = session.exec(select(BraidRecordModel))
+            for record in records:
+                record_id = record.record_id
+                # text = "%5s : %-16s %s" % ("[%i]" % record_id, name, time)
+                text = (
+                    f"[{record.record_id:5}] : {record.name:16} {record.time}"
+                )
+                deps = self.get_dependencies(record_id, session=session)
+                text = text + " <- " + str([d.record_id for d in deps])
+                uris = self.get_uris(record_id, session=session)
+                if uris is not None:
+                    for uri in uris:
+                        text += "\n\t\t\t URI: "
+                        text += uri
+                tags = self.get_tags(record_id, session=session)
+                for key, tag in tags.items():
+                    text += "\n\t\t\t TAG: "
+                    quote = (
+                        "'" if tags[key].type_ is BraidTagType.STRING else ""
+                    )
+                    text += f"{key} = {quote}{tags[key].value}{quote}"
+
+                print(text)
 
     def extract_tags(self, records):
         """Append tags data to records"""
@@ -121,51 +172,64 @@ class BraidDB:
                 text += "%s = '%s'" % (key, tags[key].value)
             records[record_id] = text
 
-    def get_dependencies(self, record_id):
+    def get_dependencies(
+        self, record_id, session: Optional[Session] = None
+    ) -> Iterable[BraidRecordModel]:
         """
-        return list of integers
+        Return list of dependent records of a record based on its id
         """
-        self.trace("DB.get_dependencies(%i) ..." % record_id)
-        self.sql.select(
-            "dependencies", "dependency", "record_id=%i" % record_id
+        self.trace(f"DB.get_dependencies({record_id}) ...")
+        dependencies = self.query_all(
+            select(BraidDependencyModel).where(
+                BraidDependencyModel.record_id == record_id
+            ),
+            session=session,
         )
-        deps = []
-        while True:
-            row = self.sql.cursor.fetchone()
-            if row is None:
-                break
-            deps.append(row[0])
-        return deps
 
-    def get_uris(self, record_id):
+        dep_recs: List[BraidRecordModel] = []
+
+        for dep in dependencies:
+            dependency_id = dep.dependency
+            dep_rec = self.query_one_or_none(
+                select(BraidRecordModel).where(
+                    BraidRecordModel.record_id == dependency_id
+                ),
+                session=session,
+            )
+            dep_recs.append(dep_rec)
+
+        return dep_recs
+
+    def get_uris(
+        self, record_id: int, session: Optional[Session] = None
+    ) -> List[str]:
         """
         return list of string URIs
         """
-        self.trace("DB.get_uris(%i) ..." % record_id)
-        self.sql.select("uris", "uri", "record_id=%i" % record_id)
+        self.trace(f"DB.get_uris({record_id}) ...")
+        rec = self.get_record_model_by_id(record_id, session=session)
         uris = []
-        while True:
-            row = self.sql.cursor.fetchone()
-            if row is None:
-                break
-            uris.append(row[0])
+        if rec is not None:
+            uris = [u.uri for u in rec.uris]
         return uris
 
-    def get_tags(self, record_id):
+    def get_tags(
+        self, record_id, session: Optional[Session] = None
+    ) -> Dict[str, BraidTagValue]:
         """
         return dict of string->BraidTagValue key->value pairs
         """
         self.trace(f"DB.get_tags({record_id}) ...")
-        self.sql.select("tags", "key, value, type", f"record_id={record_id}")
+        if session is None:
+            session = self.get_session()
+        tag_models = session.execute(
+            select(BraidTagsModel).where(BraidTagsModel.record_id == record_id)
+        ).all()
         tags = {}
-        while True:
-            row = self.sql.cursor.fetchone()
-            if row is None:
-                break
-            (key, v, t) = row[0:3]
-            type_ = BraidTagType(t)
-            value = BraidTagValue(v, type_)
-            tags[key] = value
+        for tag_model in tag_models:
+            type_ = BraidTagType(tag_model.tag_type)
+            value = BraidTagValue(tag_model.value, type_)
+            tags[tag_model.key] = value
         return tags
 
     def debug(self, msg):
@@ -203,16 +267,18 @@ def make_serial():
 
 
 class BraidRecord:
-    def __init__(self, db=None, name=None, timestamp=None, debug=True):
-        self.serial = make_serial()
+    def __init__(
+        self,
+        db: Optional[BraidDB] = None,
+        name=None,
+        timestamp=None,
+        debug=True,
+    ):
         self.db = db
-        self.name = name
         self.dependencies = []
         self.uris = []
         # Dict of string->BraidTagValue
         self.tags = {}
-        # None indicates the Record is not in the DB yet
-        self.record_id = None
 
         self.logger = logging.getLogger("BraidRecord")
         if debug:
@@ -222,22 +288,30 @@ class BraidRecord:
             self.timestamp = datetime.datetime.now()
         else:
             self.timestamp = timestamp
+        self.model = BraidRecordModel(name=name, time=self.timestamp)
 
-    def add_dependency(self, record):
+    @property
+    def record_id(self) -> Optional[int]:
+        if self.model.record_id is None:
+            if self.db is not None:
+                self.db.add_model(self.model)
+        return self.model.record_id
+
+    def add_dependency(self, record: "BraidRecord"):
         """record: a BraidRecord"""
         self.dependencies.append(record)
-        self.db.sql.insert(
-            "dependencies",
-            ["record_id", "dependency"],
-            [str(self.record_id), str(record.record_id)],
+        dep_model = BraidDependencyModel(
+            record_id=self.record_id, dependency=record.model.record_id
         )
+        if self.db is not None:
+            self.db.add_model(dep_model)
 
-    def add_uri(self, uri):
+    def add_uri(self, uri: str):
         """uri: a string URI"""
         self.uris.append(uri)
-        self.db.sql.insert(
-            "uris", ["record_id", "uri"], [str(self.record_id), q(uri)]
-        )
+        uri_model = BraidUrisModel(record_id=self.record_id, uri=uri)
+        if self.db is not None:
+            self.db.add_model(uri_model)
 
     def add_tag(self, key, value, type_=BraidTagType.STRING):
         """key:   a string key name
@@ -249,20 +323,23 @@ class BraidRecord:
                 + "received: '%s' type: %s" % (str(type_), type(type_))
             )
         self.tags[key] = value
-        self.db.sql.insert(
-            "tags",
-            ["record_id", "key", "value", "type"],
-            [str(self.record_id), q(key), q(value), str(type_.value)],
+        tag_model = BraidTagsModel(
+            record_id=self.record_id,
+            key=key,
+            value=value,
+            tag_type=type_.value,
         )
+        if self.db is not None:
+            self.db.add_model(tag_model)
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
     def __str__(self):
         if self.name is None:
-            return "BraidRecord" % self.uri
+            return f"BraidRecord {self.uri}"
         else:
-            return 'BraidRecord("%s")' % self.name
+            return f'BraidRecord("{self.name}")'
 
     def debug(self, msg):
         self.logger.debug(msg)
@@ -280,11 +357,9 @@ class BraidFact(BraidRecord):
         raise Exception("BraidFacts do not have dependencies!")
 
     def store(self):
-        self.record_id = self.db.sql.insert(
-            "records", ["name", "time"], qA(self.name, self.strftime())
-        )
-        self.debug("stored Fact: <%s>" % self.record_id)
-        return self.record_id
+        self.db.add_model(self.model)
+        self.debug(f"stored Fact: {self.model.record_id}")
+        return self.model.record_id
 
 
 class BraidData(BraidRecord):
@@ -297,11 +372,9 @@ class BraidData(BraidRecord):
         super().__init__(db=db, name=name)
 
     def store(self):
-        self.record_id = self.db.sql.insert(
-            "records", ["name", "time"], qA(self.name, self.strftime())
-        )
-        self.debug("stored Data: <%s>" % self.record_id)
-        return self.record_id
+        self.db.add_model(self.model)
+        self.debug(f"stored Data: {self.model.record_id}")
+        return self.model.record_id
 
 
 class BraidModel(BraidRecord):
@@ -316,11 +389,9 @@ class BraidModel(BraidRecord):
         super().add_dependency(record)
 
     def store(self):
-        self.record_id = self.db.sql.insert(
-            "records", ["name", "time"], qA(self.name, self.strftime())
-        )
-        self.debug("stored Model: <%s>" % self.record_id)
-        return self.record_id
+        self.db.add_model(self.model)
+        self.debug(f"stored Model: {self.model.record_id}")
+        return self.model.record_id
 
 
 # class Braid
