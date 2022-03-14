@@ -4,14 +4,17 @@ import datetime
 import logging
 from enum import Enum, unique
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, TypeVar
+from typing import Dict, Iterable, Iterator, List, Optional, TypeVar, Union
+from uuid import UUID
 
 from sqlalchemy.exc import ArgumentError
 from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel.engine.result import ScalarResult
 from sqlmodel.sql.expression import Select
 
 from .models import (
     BraidDependencyModel,
+    BraidInvalidationModel,
     BraidModelBase,
     BraidRecordModel,
     BraidTagsModel,
@@ -22,15 +25,6 @@ SCHEMA_FILE_NAME = "braid-db.sql"
 DEFAULT_SCHEMA_FILE_PATH = Path(__file__).parent / SCHEMA_FILE_NAME
 
 SQLITE_URL_PREFIX = "sqlite:///"
-
-
-def digits(c):
-    """Return c random digits (for random names)"""
-    import random
-
-    n = random.randint(0, 10 ** c)
-    s = "%0*i" % (c, n)
-    return s
 
 
 @unique
@@ -53,7 +47,13 @@ class BraidTagValue:
 
 class BraidDB:
     def __init__(
-        self, db_url: str, log=False, debug=False, mpi=False, echo_sql=False
+        self,
+        db_url: str,
+        log=False,
+        debug=False,
+        mpi=False,
+        echo_sql=False,
+        create_engine_kwargs: Optional[Dict] = None,
     ):
         self.db_url = db_url
         self.logger = logging.getLogger("BraidDB")
@@ -74,8 +74,17 @@ class BraidDB:
             self.sql = BraidSQL_MPI(db_url, log, debug)
         self.engine = self.create_engine(db_url, echo_sql=echo_sql)
 
-    def create_engine(self, db_url: str, echo_sql=False):
+    def create_engine(
+        self,
+        db_url: str,
+        echo_sql=False,
+        create_engine_kwargs: Optional[Dict] = None,
+    ):
         try:
+            if create_engine_kwargs is None:
+                create_engine_kwargs = {}
+            if echo_sql:
+                create_engine_kwargs["echo"] = True
             return create_engine(db_url, echo=echo_sql)
         except ArgumentError:
             return create_engine(SQLITE_URL_PREFIX + db_url, echo=echo_sql)
@@ -86,12 +95,25 @@ class BraidDB:
             return
         SQLModel.metadata.create_all(self.engine)
 
-    def run_query(self, stmt: Select, session: Optional[Session] = None):
+    def get_session(self, **kwargs) -> Session:
+        return Session(self.engine, **kwargs)
+
+    def run_query(
+        self,
+        stmt: Select,
+        session: Optional[Session] = None,
+        filter_func=ScalarResult.all,
+    ):
+        func_name = filter_func.__name__
         if session is not None:
-            return session.exec(stmt)
+            result = session.exec(stmt)
+            func_to_call = getattr(result, func_name)
+            return func_to_call()
         else:
-            with Session(self.engine) as session:
-                return session.exec(stmt)
+            with self.get_session(expire_on_commit=False) as session:
+                result = session.exec(stmt)
+                func_to_call = getattr(result, func_name)
+                return func_to_call()
 
     def query_all(self, stmt: Select, session: Optional[Session] = None):
         return self.run_query(stmt, session=session)
@@ -99,7 +121,9 @@ class BraidDB:
     def query_one_or_none(
         self, stmt: Select, session: Optional[Session] = None
     ):
-        return self.run_query(stmt, session=session).one_or_none()
+        return self.run_query(
+            stmt, session=session, filter_func=ScalarResult.one_or_none
+        )
 
     def get_record_model_by_id(
         self, record_id: int, session: Optional[Session] = None
@@ -220,11 +244,12 @@ class BraidDB:
         return dict of string->BraidTagValue key->value pairs
         """
         self.trace(f"DB.get_tags({record_id}) ...")
-        if session is None:
-            session = self.get_session()
-        tag_models = session.execute(
-            select(BraidTagsModel).where(BraidTagsModel.record_id == record_id)
-        ).all()
+        tag_models = self.query_all(
+            select(BraidTagsModel).where(
+                BraidTagsModel.record_id == record_id
+            ),
+            session=session,
+        )
         tags = {}
         for tag_model in tag_models:
             type_ = BraidTagType(tag_model.tag_type)
@@ -290,6 +315,66 @@ class BraidRecord:
             self.timestamp = timestamp
         self.model = BraidRecordModel(name=name, time=self.timestamp)
 
+    @classmethod
+    def from_orm(
+        cls, orm_model: BraidRecordModel, db: Optional[BraidDB] = None
+    ) -> "BraidRecord":
+        rec = cls(db=db, name=orm_model.name, timestamp=orm_model.time)
+        rec.model = orm_model
+        return rec
+
+    @classmethod
+    def by_record_id(
+        cls, db: BraidDB, record_id: int, session: Optional[Session] = None
+    ) -> Optional["BraidRecord"]:
+        model_rec: BraidRecordModel = db.query_one_or_none(
+            select(BraidRecordModel).where(
+                BraidRecordModel.record_id == record_id
+            ),
+            session=session,
+        )
+        if model_rec is not None:
+            return cls.from_orm(model_rec, db=db)
+        else:
+            return None
+
+    @classmethod
+    def for_tag_value(
+        cls,
+        db: BraidDB,
+        key: str,
+        value: Union[str, int, float],
+        session: Session,
+    ) -> Iterator["BraidRecord"]:
+        model_tags: Iterable[BraidTagsModel] = db.query_all(
+            select(BraidTagsModel).where(
+                BraidTagsModel.key == key
+                and BraidTagsModel.value == str(value)
+            ),
+            session=session,
+        )
+        return (
+            cls.from_orm(model_tag.record, db=db) for model_tag in model_tags
+        )
+
+    @classmethod
+    def invalidate_by_tag_value(
+        cls,
+        db: BraidDB,
+        key: str,
+        value: Union[str, int, float],
+        session: Session,
+        cascade: bool = False,
+        cause: Optional[str] = None,
+    ) -> Iterator["BraidRecord"]:
+        if cause is None:
+            cause = f"Invalidated because of tag {key} having value {value}"
+        invalidates = (
+            rec.invalidate(cause=cause, cascade=cascade, session=session)
+            for rec in cls.for_tag_value(db, key, value, session)
+        )
+        return [i for i in invalidates if i is not None]
+
     @property
     def record_id(self) -> Optional[int]:
         if self.model.record_id is None:
@@ -313,14 +398,14 @@ class BraidRecord:
         if self.db is not None:
             self.db.add_model(uri_model)
 
-    def add_tag(self, key, value, type_=BraidTagType.STRING):
+    def add_tag(self, key, value, type_=BraidTagType.STRING) -> int:
         """key:   a string key name
         value: a string value
         """
         if not isinstance(type_, BraidTagType):
             raise Exception(
                 "type must be a BraidTagType! "
-                + "received: '%s' type: %s" % (str(type_), type(type_))
+                f"received: {str(type_)} type: {type(type_)}"
             )
         self.tags[key] = value
         tag_model = BraidTagsModel(
@@ -331,6 +416,49 @@ class BraidRecord:
         )
         if self.db is not None:
             self.db.add_model(tag_model)
+        return tag_model.id
+
+    def invalidate(
+        self,
+        cause: Optional[str] = None,
+        root_invalidation: Optional[Union[str, UUID]] = None,
+        cascade=True,
+        session: Optional[Session] = None,
+    ) -> Optional["BraidRecord"]:
+        if self.model.invalidation_id is not None:
+            return None
+        if cause is None and root_invalidation is None:
+            raise ValueError(
+                "At least one of the cause or "
+                "root_invalidation must be provided"
+            )
+        if cause is None:
+            cause = f"As a result of Invalidation id {str(root_invalidation)}"
+        invalid_model = BraidInvalidationModel(cause=cause)
+        if root_invalidation is not None:
+            invalid_model.root_invalidation = UUID(str(root_invalidation))
+        if self.db is not None:
+            self.db.add_model(invalid_model, session=session)
+            self.model.invalidation = invalid_model
+            self.db.add_model(self.model, session=session)
+            if cascade:
+                dependencies = self.db.get_dependencies(
+                    self.model.record_id, session=session
+                )
+                for dependency in dependencies:
+                    dep_rec = BraidRecord(db=self.db)
+                    dep_rec.model = dependency
+                    dep_rec.invalidate(
+                        cause=cause,
+                        root_invalidation=invalid_model.id,
+                        cascade=cascade,
+                        session=session,
+                    )
+
+        return self
+
+    def is_valid(self, session: Optional[Session] = None) -> bool:
+        return self.model.invalidation_id is None
 
     def strftime(self):
         return self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
@@ -356,7 +484,7 @@ class BraidFact(BraidRecord):
         """record: a BraidRecord"""
         raise Exception("BraidFacts do not have dependencies!")
 
-    def store(self):
+    def store(self) -> int:
         self.db.add_model(self.model)
         self.debug(f"stored Fact: {self.model.record_id}")
         return self.model.record_id
@@ -371,7 +499,7 @@ class BraidData(BraidRecord):
     def __init__(self, db=None, name=None):
         super().__init__(db=db, name=name)
 
-    def store(self):
+    def store(self) -> int:
         self.db.add_model(self.model)
         self.debug(f"stored Data: {self.model.record_id}")
         return self.model.record_id
@@ -388,7 +516,7 @@ class BraidModel(BraidRecord):
         """record: a BraidRecord"""
         super().add_dependency(record)
 
-    def store(self):
+    def store(self) -> int:
         self.db.add_model(self.model)
         self.debug(f"stored Model: {self.model.record_id}")
         return self.model.record_id
