@@ -6,8 +6,8 @@ from .braid_db import (
     BraidRecord,
     BraidTagType,
     BraidTagValue,
-    digits,
 )
+from .gen_tools import digits
 
 __all__ = [
     "BraidModel",
