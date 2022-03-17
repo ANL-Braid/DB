@@ -20,8 +20,12 @@ echo "TEST-CORE ..."
     mv --verbose --backup=numbered $DB $DB.bak
   fi
 
+  # Python API
   ./test.sh test-0.py
   ./test.sh test-1.py
+
+  # Tools
+  $BRAID/bin/braid-db-print $THIS/braid.db
 )
 
 echo "TEST-CORE: OK."
