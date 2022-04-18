@@ -6,6 +6,7 @@ from .braid_db import (
     BraidRecord,
     BraidTagType,
     BraidTagValue,
+    InvalidationActionType,
 )
 from .gen_tools import digits
 
@@ -17,5 +18,6 @@ __all__ = [
     "BraidRecord",
     "BraidTagValue",
     "BraidTagType",
+    "InvalidationActionType",
     "digits",
 ]

@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import subprocess
 from enum import Enum, unique
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, TypeVar, Union
@@ -12,13 +13,17 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.engine.result import ScalarResult
 from sqlmodel.sql.expression import Select
 
+from .gen_tools import substitute_vals
 from .models import (
     BraidDependencyModel,
+    BraidInvalidationAction,
     BraidInvalidationModel,
     BraidModelBase,
     BraidRecordModel,
     BraidTagsModel,
     BraidUrisModel,
+    InvalidationActionParamsType,
+    InvalidationActionType,
 )
 
 SCHEMA_FILE_NAME = "braid-db.sql"
@@ -35,8 +40,25 @@ class BraidTagType(Enum):
     INTEGER = 2
     FLOAT = 3
 
+    @classmethod
+    def type_for_value(cls):
+        if isinstance(cls, int):
+            return cls.INTEGER
+        elif isinstance(cls, float):
+            return cls.FLOAT
+        elif isinstance(cls, str):
+            return cls.STRING
+        else:
+            return cls.NONE
+
+    def to_python_type(self):
+        type_map = {"STRING": str, "INTEGER": int, "FLOAT": float}
+        name = self.name
+        return type_map.get(name)
+
 
 BraidModelTypeVar = TypeVar("BraidModelTypeVar", bound=BraidModelBase)
+TagValueType = Union[str, int, float]
 
 
 class BraidTagValue:
@@ -298,6 +320,7 @@ class BraidRecord:
         name=None,
         timestamp=None,
         debug=True,
+        session: Optional[Session] = None,
     ):
         self.db = db
         self.dependencies = []
@@ -314,6 +337,8 @@ class BraidRecord:
         else:
             self.timestamp = timestamp
         self.model = BraidRecordModel(name=name, time=self.timestamp)
+        if self.db is not None:
+            self.db.add_model(self.model, session=session)
 
     @classmethod
     def from_orm(
@@ -343,7 +368,7 @@ class BraidRecord:
         cls,
         db: BraidDB,
         key: str,
-        value: Union[str, int, float],
+        value: TagValueType,
         session: Session,
     ) -> Iterator["BraidRecord"]:
         model_tags: Iterable[BraidTagsModel] = db.query_all(
@@ -362,7 +387,7 @@ class BraidRecord:
         cls,
         db: BraidDB,
         key: str,
-        value: Union[str, int, float],
+        value: TagValueType,
         session: Session,
         cascade: bool = False,
         cause: Optional[str] = None,
@@ -398,7 +423,13 @@ class BraidRecord:
         if self.db is not None:
             self.db.add_model(uri_model)
 
-    def add_tag(self, key, value, type_=BraidTagType.STRING) -> int:
+    def add_tag(
+        self,
+        key,
+        value,
+        type_=BraidTagType.STRING,
+        session: Optional[Session] = None,
+    ) -> int:
         """key:   a string key name
         value: a string value
         """
@@ -415,14 +446,56 @@ class BraidRecord:
             tag_type=type_.value,
         )
         if self.db is not None:
-            self.db.add_model(tag_model)
+            self.db.add_model(tag_model, session=session)
         return tag_model.id
+
+    def tags_as_dict(
+        self, session: Optional[Session] = None
+    ) -> Dict[str, TagValueType]:
+        tags: Iterable[BraidTagsModel] = self.db.query_all(
+            select(BraidTagsModel).where(
+                BraidTagsModel.record_id == self.record_id
+            ),
+            session=session,
+        )
+        ret_dict: Dict[str, TagValueType] = {}
+        for tag in tags:
+            key = tag.key
+            value = tag.value
+            # tag_type = tag.tag_type
+            # TODO: Use tag_type to coerce value to the proper python type
+            ret_dict[key] = value
+
+        return ret_dict
+
+    def set_invalidation_action(
+        self,
+        action_type: InvalidationActionType,
+        name: str,
+        cmd: str,
+        params: InvalidationActionParamsType,
+        session: Optional[Session] = None,
+    ) -> BraidInvalidationAction:
+        # TODO: Some validation that the paramters are correct
+        invalidation_action = BraidInvalidationAction(
+            action_type=action_type,
+            name=name,
+            cmd=cmd,
+            params=params,
+            record_id=self.model.record_id,
+        )
+        self.model.invalidation_action = invalidation_action
+        if self.db is not None:
+            self.db.add_model(invalidation_action, session=session)
+        return invalidation_action
 
     def invalidate(
         self,
         cause: Optional[str] = None,
         root_invalidation: Optional[Union[str, UUID]] = None,
         cascade=True,
+        perform_invalidation_action=True,
+        perform_invalidation_action_on_cascade=True,
         session: Optional[Session] = None,
     ) -> Optional["BraidRecord"]:
         if self.model.invalidation_id is not None:
@@ -452,10 +525,49 @@ class BraidRecord:
                         cause=cause,
                         root_invalidation=invalid_model.id,
                         cascade=cascade,
+                        perform_invalidation_action=(
+                            perform_invalidation_action_on_cascade
+                        ),
+                        perform_invalidation_action_on_cascade=(
+                            perform_invalidation_action_on_cascade
+                        ),
                         session=session,
                     )
-
+        self.perform_invalidation_action(session=session)
         return self
+
+    def perform_invalidation_action(
+        self, session: Optional[Session] = None
+    ) -> None:
+        invalidation_action = self.model.invalidation_action
+        if invalidation_action is None:
+            return
+
+        substitution_vals = self.tags_as_dict(session)
+        substitution_vals["name"] = self.model.name
+        substitution_vals["uri"] = self.model.uri
+
+        cmd = substitute_vals(invalidation_action.cmd, substitution_vals)
+        params = substitute_vals(invalidation_action.params, substitution_vals)
+
+        if (
+            invalidation_action.action_type
+            is InvalidationActionType.SHELL_COMMAND
+        ):
+            cmd_line = [cmd]
+            cmd_line.extend(params.get("args", []))
+            action_run = subprocess.run(cmd_line)
+            self.debug(
+                f"Return of command {cmd} {params} was: "
+                f"{action_run.returncode}"
+            )
+        elif (
+            invalidation_action.action_type
+            is InvalidationActionType.AUTOMATE_EVENT
+        ):
+            ...
+        else:
+            ...
 
     def is_valid(self, session: Optional[Session] = None) -> bool:
         return self.model.invalidation_id is None
