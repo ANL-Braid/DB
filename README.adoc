@@ -165,7 +165,25 @@ Note: Additional docs forthcoming to help get setup in a (mini)conda based envir
 * Then, run `poetry install` to setup a local virtual environment from which to run other applications
 * Run, `poetry run pre-commit install` to setup pre-commit hooks for code formatting, lining, etc.
 * Tests can be run using scripts in the `tests` directory.
-  * Additional testing based on `pytest` is forthcoming
+* Unit tests can be run with the command `poetry run pytest pytests/` which will run the pytest test driver from the current virtual environment on all then tests defined in the `pytests` directory.
+
+
+== Working with FuncX
+
+Using FuncX requires that the `funcx-endpoint` be installed in a working environment whether it is a conda, pip or otherwise installed process.
+
+Setting up to run with funcx is a multi-step process:
+
+1. Create a new funcX endpoint configured so that it can use the BraidDB library. This can be done with the shell script: `scripts/configured_funcx_endpoint.sh`. Provide one command line argument: the name of the funcx endpoint to be created/configured. If no name is provided, the endpoint will be named `braid_db`. This endpoint will be configured such that it has access to the implementation stored in the `.venv` directory of the braid db project.
+
+2. Start the new endpoint with the command `funcx-endpoint start <endpoint_name>` where `endpoint_name` is as configured in the previous step. Take note of the UUID generated for the new endpoint.
+
+3. If you want the funcx hosted braid db to store files in a different location, edit `src/braid_db/funcx/funcx_main.py` and change the value of `DB_FILE` in the function `funcx_add_record`. If not editted the funcx-based operations will store their entried in the file `~/funcx-braid.db`.
+
+4. Register the function(s) to be exposed to funcx. This can be done with the command `.venv/bin/register-funcx` (or `poetry run register-funcx`). Note that this requires that the command `poetry install` has previously been run so that the script is installed in the virtual environment (in the `.venv/bin` directory). As before, take note of the UUID for the registered function.
+
+5. To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --envpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.
+
 
 
 == Developer notes
