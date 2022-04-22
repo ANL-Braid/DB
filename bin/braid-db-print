@@ -7,5 +7,5 @@ THIS=$(  readlink --canonicalize $( dirname $0 ) )
 export BRAID_HOME=$( readlink --canonicalize $THIS/.. )
 
 export PYTHONPATH=${PYTHONPATH:-}:$BRAID_HOME/src
-python3 src/braid_db/tools/db_print.py ${*}
+poetry run db-print ${*}
 # Returns exit code from python
