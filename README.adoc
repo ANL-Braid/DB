@@ -174,7 +174,7 @@ Using FuncX requires that the `funcx-endpoint` be installed in a working environ
 
 Setting up to run with funcx is a multi-step process:
 
-1. Create a new funcX endpoint configured so that it can use the BraidDB library. This can be done with the shell script: `scripts/configured_funcx_endpoint.sh`. Provide one command line argument: the name of the funcx endpoint to be created/configured. If no name is provided, the endpoint will be named `braid_db`. This endpoint will be configured such that it has access to the implementation stored in the `.venv` directory of the braid db project.
+1. Create a new funcX endpoint configured so that it can use the BraidDB library. This can be done with the shell script: `scripts/configure_funcx_endpoint.sh`. Provide one command line argument: the name of the funcx endpoint to be created/configured. If no name is provided, the endpoint will be named `braid_db`. This endpoint will be configured such that it has access to the implementation stored in the `.venv` directory of the braid db project.
 
 2. Start the new endpoint with the command `funcx-endpoint start <endpoint_name>` where `endpoint_name` is as configured in the previous step. Take note of the UUID generated for the new endpoint.
 
@@ -182,7 +182,7 @@ Setting up to run with funcx is a multi-step process:
 
 4. Register the function(s) to be exposed to funcx. This can be done with the command `.venv/bin/register-funcx` (or `poetry run register-funcx`). Note that this requires that the command `poetry install` has previously been run so that the script is installed in the virtual environment (in the `.venv/bin` directory). As before, take note of the UUID for the registered function.
 
-5. To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --envpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.
+5. To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --endpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.
 
 
 
