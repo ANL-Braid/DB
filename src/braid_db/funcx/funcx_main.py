@@ -87,12 +87,15 @@ def funcx_add_record():
     parser.add_argument(
         "--function-id", default=_ADD_RECORD_FUNCX_UUID, type=uuid.uuid4
     )
+    parser.add_argument(
+        "record_name"
+    )
     args = parser.parse_args()
 
     fxc = FuncXClient()
     result = _run_and_wait_funcx(
         fxc,
-        name="From FuncX call",
+        name=args.record_name,
         function_id=args.function_id,
         endpoint_id=args.endpoint_id,
     )
