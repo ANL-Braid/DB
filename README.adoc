@@ -178,7 +178,7 @@ Setting up to run with funcx is a multi-step process:
 
 2. Start the new endpoint with the command `funcx-endpoint start <endpoint_name>` where `endpoint_name` is as configured in the previous step. Take note of the UUID generated for the new endpoint.
 
-3. If you want the funcx hosted braid db to store files in a different location, edit `src/braid_db/funcx/funcx_main.py` and change the value of `DB_FILE` in the function `funcx_add_record`. If not editted the funcx-based operations will store their entried in the file `~/funcx-braid.db`.
+3. If you want the funcx hosted braid db to store files in a different location, edit `src/braid_db/funcx/funcx_main.py` and change the value of `DB_FILE` in the function `funcx_add_record`. If not edited the funcx-based operations will store their entried in the file `~/funcx-braid.db`.
 
 4. Register the function(s) to be exposed to funcx. This can be done with the command `.venv/bin/register-funcx` (or `poetry run register-funcx`). Note that this requires that the command `poetry install` has previously been run so that the script is installed in the virtual environment (in the `.venv/bin` directory). As before, take note of the UUID for the registered function.
 
