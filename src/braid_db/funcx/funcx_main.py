@@ -1,7 +1,6 @@
 #!/bin/env python3
 import sys
 import time
-import uuid
 from argparse import ArgumentParser
 from typing import Any
 
@@ -81,15 +80,11 @@ def register_functions():
 
 def funcx_add_record():
     parser = ArgumentParser()
+    parser.add_argument("--endpoint-id", default=_MY_ENDPOINT_ID, type=str)
     parser.add_argument(
-        "--endpoint-id", default=_MY_ENDPOINT_ID, type=uuid.uuid4
+        "--function-id", default=_ADD_RECORD_FUNCX_UUID, type=str
     )
-    parser.add_argument(
-        "--function-id", default=_ADD_RECORD_FUNCX_UUID, type=uuid.uuid4
-    )
-    parser.add_argument(
-        "record_name"
-    )
+    parser.add_argument("record_name")
     args = parser.parse_args()
 
     fxc = FuncXClient()
