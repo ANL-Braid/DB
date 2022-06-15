@@ -23,12 +23,12 @@ class BraidModelBase(SQLModel):
     ...
 
 
-class BraidDependencyModel(BraidModelBase, table=True):
-    __tablename__: str = "dependencies"
+class BraidDerivationModel(BraidModelBase, table=True):
+    __tablename__: str = "derivations"
     record_id: Optional[int] = Field(
         default=None, primary_key=True, foreign_key="records.record_id"
     )
-    dependency: Optional[int] = Field(
+    derivation: Optional[int] = Field(
         default=None, primary_key=True, foreign_key="records.record_id"
     )
     time: datetime = timestamp_now_field
@@ -72,6 +72,14 @@ class BraidInvalidationAction(BraidModelBase, table=True):
     )
 
 
+class BraidUrisModel(BraidModelBase, table=True):
+    __tablename__: str = "uris"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    record_id: int = Field(foreign_key="records.record_id", index=True)
+    uri: str
+    record: "BraidRecordModel" = Relationship(back_populates="uris")
+
+
 class BraidRecordModel(BraidModelBase, table=True):
     __tablename__: str = "records"
     record_id: Optional[int] = Field(default=None, primary_key=True)
@@ -90,13 +98,11 @@ class BraidRecordModel(BraidModelBase, table=True):
         back_populates="records"
     )
 
-    # We have to declare uri as a list even though we know it can only have one
-    # value (i.e. one-to-one relationship)
-    uris: List["BraidUrisModel"] = Relationship(back_populates="record")
+    uris: List[BraidUrisModel] = Relationship(back_populates="record")
 
     # So, we define a property for looking at the single uri as well
     @property
-    def uri(self) -> Optional["BraidUrisModel"]:
+    def uri(self) -> Optional[BraidUrisModel]:
         return self.uris[0] if len(self.uris) > 0 else None
 
     tags: List["BraidTagsModel"] = Relationship(back_populates="record")
@@ -119,14 +125,6 @@ class BraidRecordModel(BraidModelBase, table=True):
         },
     )
     """
-
-
-class BraidUrisModel(BraidModelBase, table=True):
-    __tablename__: str = "uris"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    record_id: int = Field(foreign_key="records.record_id", index=True)
-    uri: str
-    record: BraidRecordModel = Relationship(back_populates="uris")
 
 
 class BraidTagsModel(BraidModelBase, table=True):

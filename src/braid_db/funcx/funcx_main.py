@@ -1,15 +1,52 @@
 #!/bin/env python3
+import hashlib
+import json
 import sys
 import time
 from argparse import ArgumentParser
-from typing import Any
+from os.path import expanduser
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 
 from funcx.sdk.client import FuncXClient
 from funcx.sdk.executor import FuncXExecutor
+from funcx.serialize import FuncXSerializer
 
-_MY_ENDPOINT_ID = "4877c629-0671-4bc9-8146-9ffa813d1ec3"
+_MY_ENDPOINT_ID = "834dd614-adc1-4ed1-a620-d67c4e90a165"
 
 _ADD_RECORD_FUNCX_UUID = "76093527-1c17-459e-ace8-d9ff10235807"
+
+_FUNCTION_REGISTRATION_CACHE = expanduser(
+    "~/.funcx_registered_functions_cache.json"
+)
+
+
+class CachedFunction(NamedTuple):
+    funcx_uuid: str
+    impl_hash: str
+
+
+def load_registered_funcx_functions() -> Dict[str, CachedFunction]:
+    ret_entries = {}
+    try:
+        with open(_FUNCTION_REGISTRATION_CACHE) as f:
+            entries = json.load(f)
+            for entry_name, cached_val in entries.items():
+                ret_entries[entry_name] = CachedFunction(
+                    funcx_uuid=cached_val[0], impl_hash=cached_val[1]
+                )
+            return ret_entries
+    except FileNotFoundError:
+        return {}
+
+
+def store_registered_funcx_functions(
+    funcx_functions: Dict[str, CachedFunction]
+):
+    try:
+        with open(_FUNCTION_REGISTRATION_CACHE, "w") as f:
+            json.dump(funcx_functions, f)
+    except Exception as e:
+        print(f"Saving function cached failed due to {e}")
 
 
 def add_func(a: int, b: int) -> int:
@@ -17,44 +54,281 @@ def add_func(a: int, b: int) -> int:
     return a + b
 
 
-def add_braid_records(*args, **kwargs):
+def funcx_echo(*args, **kwargs):
+    return f"args: {args}; kwargs: {kwargs}"
+
+
+def add_transfer_request(
+    previous_step_record_id=None,
+    transfer_input={},
+    transfer_result={},
+    *args,
+    **kwargs,
+):
     import os
 
     from braid_db import BraidDB, BraidRecord
+
+    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
 
     DB_FILE = "~/funcx-braid.db"
 
     DB = BraidDB(os.path.expanduser(DB_FILE))
     DB.create()
-    record_params = {}
-    if len(args) > 0:
-        if isinstance(args[0], dict):
-            record_params = args[0]
-        else:
-            print(f"Got unexpected input argument: {args[0]}")
-    record_params.update(kwargs)
-    if "name" not in record_params:
-        raise ValueError("Input must contain a name")
-    rec = BraidRecord(DB, name=record_params["name"])
-    record_id = rec.record_id
-    if uris := record_params.get("uris") is not None:
-        if isinstance(uris, list):
-            for uri in uris:
-                if isinstance(uri, str):
-                    rec.add_uri(uri)
-    return record_id
+    session = DB.get_session()
+    transfer_items = transfer_input.get("transfer_items", [])
+    src_endpoint = transfer_input.get("source_endpoint_id")
+    dest_endpoint = transfer_input.get("destination_endpoint_id")
+    transfer_status = transfer_result.get("status")
+    transfer_details = transfer_result.get("details", {})
+    transfer_task_id = transfer_details.get("task_id")
+    transfer_uri = (
+        f"https://app.globus.org/activity/{transfer_task_id}/overview"
+    )
+    source_records = []
+    dest_records = []
+
+    transfer_record = BraidRecord(
+        db=DB, name=f"Globus Transfer task {transfer_task_id}"
+    )
+    transfer_record.add_uri(transfer_uri)
+    transfer_record.add_tag("status", transfer_status)
+
+    if previous_step_record_id is not None:
+        pred_model = DB.get_record_model_by_id(
+            int(previous_step_record_id), session=session
+        )
+        if pred_model is not None:
+            pred_rec = BraidRecord.from_orm(pred_model, db=DB)
+            pred_rec.add_derivation(transfer_record)
+
+    for transfer_item in transfer_items:
+        src_path = transfer_item.get("source_path", "Unknown")
+        src_name = f"Globus transfer source {src_endpoint}:{src_path}"
+        src_record = BraidRecord(db=DB, name=src_path)
+        src_uri = f"globustransfer://{src_endpoint}/{src_path}"
+        src_record = BraidRecord(db=DB, name=src_name)
+        src_record.add_uri(src_uri)
+        source_records.append(src_record)
+        src_record.add_derivation(transfer_record)
+
+        dest_path = transfer_item.get("destination_path", "Unknown")
+        dest_name = f"Globus transfer source {dest_endpoint}:{dest_path}"
+        dest_uri = f"globustransfer://{dest_endpoint}/{dest_path}"
+        dest_record = BraidRecord(db=DB, name=dest_name)
+        dest_record.add_uri(dest_uri)
+        dest_records.append(dest_record)
+        transfer_record.add_derivation(dest_record)
+
+    return {
+        "flow_state_record_id": transfer_record.record_id,
+        "source_record_ids": [s.record_id for s in source_records],
+        "destination_record_ids": [d.record_id for d in dest_records],
+    }
+
+
+def sha256_function(function: Callable) -> str:
+    """
+    Get the SHA256 checksum of a funcx function
+    :return: sha256 hex string of a given funcx function
+    """
+    fxs = FuncXSerializer()
+    serialized_func = fxs.serialize(function).encode()
+    return hashlib.sha256(serialized_func).hexdigest()
+
+
+def add_record_for_action_step(
+    step_name=None,
+    step_parameters=None,
+    step_result=None,
+    previous_step_record_id=None,
+    other_predecessor_record_ids=None,
+    uris=None,
+    **kwargs,
+):
+    import os
+
+    from braid_db import BraidDB, BraidRecord
+    from braid_db.models import BraidDerivationModel
+
+    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+
+    DB_FILE = "~/funcx-braid.db"
+
+    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB.create()
+    session = DB.get_session()
+
+    step_record = BraidRecord(db=DB, name=f"Action Step {step_name}")
+    step_record_id = step_record.record_id
+    exception_str = None
+    if step_result is None:
+        step_result = "Not Provided"
+    elif isinstance(step_result, dict):
+        step_result = step_result.get("status", "Not Present in Step Results")
+
+    step_record.add_tag("status", str(step_result), session=session)
+
+    if isinstance(uris, str):
+        uris = [uris]
+    if isinstance(uris, list):
+        for uri in uris:
+            step_record.add_uri(uri, session=session)
+
+    # If we have step parameters, we setup to recurse through the values.
+    if isinstance(step_parameters, dict):
+        to_traverse = [(step_parameters, "")]
+        while to_traverse:
+            vals, prefix = to_traverse.pop()
+            for k, v in vals.items():
+                if isinstance(v, dict):
+                    to_traverse.append((v, k + "."))
+                else:
+                    step_record.add_tag(prefix + k, str(v), session=session)
+
+    previous_step_name = None
+    if previous_step_record_id is not None:
+        try:
+            # If the input is a dict, we will assume we were provided the
+            # result from a previous invocation of this same funcx-based
+            # provenance recording operation. So, we navigate into the result
+            # to the point where the previous step would place the record id
+            if isinstance(previous_step_record_id, dict):
+                previous_step_record_id = (
+                    previous_step_record_id.get("details", {})
+                    .get("result", [dict()])[0]
+                    .get("flow_state_record_id", -1)
+                )
+            if isinstance(previous_step_record_id, str):
+                previous_step_record_id = int(previous_step_record_id)
+
+            previous_step_model = DB.get_record_model_by_id(
+                previous_step_record_id, session=session
+            )
+            if previous_step_model is not None:
+                previous_step_name = previous_step_model.name
+                derivation_model = BraidDerivationModel(
+                    record_id=previous_step_record_id,
+                    derivation=step_record_id,
+                )
+                DB.add_model(derivation_model, session=session)
+            else:
+                previous_step_name = (
+                    f"Unable to get record by id for {previous_step_record_id}"
+                )
+        except Exception as ve:
+            print(
+                "Unable to get record id from value "
+                f"{previous_step_record_id} on {ve}"
+            )
+            exception_str = str(ve)
+    session.commit()
+    return {
+        "flow_state_record_id": step_record.record_id,
+        "previous_step_record_id": previous_step_record_id,
+        "previous_step_name": previous_step_name,
+        "exception_str": exception_str,
+    }
+
+
+def create_invalidation_action() -> None:
+    return
+
+
+def add_records(record_dicts, *args, **kwargs) -> list:
+    import os
+    from typing import Optional
+
+    # from typing import Any, Dict, List, Union
+    from braid_db import (
+        APIBraidRecordInput,
+        APIBraidRecordOutput,
+        BraidDB,
+        BraidRecord,
+    )
+
+    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+
+    DB_FILE = "~/funcx-braid.db"
+
+    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB.create()
+    session = DB.get_session()
+
+    # output_records: List[Union[Dict[str, Any], str]] = []
+    output_records = []
+
+    def add_record(
+        api_record: APIBraidRecordInput,
+        derived_from: Optional[APIBraidRecordOutput] = None,
+    ) -> APIBraidRecordOutput:
+        braid_rec = BraidRecord(db=DB, name=api_record.name)
+        if api_record.uris:
+            for uri in api_record.uris:
+                braid_rec.add_uri(uri)
+
+        if api_record.tags:
+            for tag_name, tag_val in api_record.tags.items():
+                braid_rec.add_tag(tag_name, tag_val.value, tag_val.typ)
+
+        if api_record.derived_from_record_id is not None:
+            parent_rec = BraidRecord.by_record_id(
+                DB, api_record.derived_from_record_id, session
+            )
+            if parent_rec is None:
+                print("UH OH!!!")
+            else:
+                parent_rec.add_derivation(braid_rec)
+
+        braid_rec_output = APIBraidRecordOutput(
+            record_id=braid_rec.record_id,
+            name=api_record.name,
+            uris=api_record.uris,
+            tags=api_record.uris,
+            time=braid_rec.timestamp,
+        )
+
+        if api_record.derivations is not None:
+            braid_rec_output.derivations = []
+            for derivative in api_record.derivations:
+                output_derivative = add_record(derivative, braid_rec_output)
+                braid_rec_output.derivations.append(output_derivative)
+
+        return braid_rec_output
+
+    # IF there's just one record in the first arg, that's ok, we'll just use
+    # that
+    if isinstance(record_dicts, dict):
+        record_dicts = [record_dicts]
+    record_dicts.extend(args)
+    for record_dict in record_dicts:
+        if isinstance(record_dict, dict):
+            try:
+                api_input_record = APIBraidRecordInput(**record_dict)
+                api_output_record = add_record(api_input_record, None)
+                output_records.append(api_output_record.dict())
+            except Exception as ve:
+                output_records.append(str(ve))
+
+    return output_records
 
 
 def _run_and_wait_funcx(
     fxc: FuncXClient, *args, function_id: str, endpoint_id: str, **kwargs
 ) -> Any:
+    print(f"DEBUG {(args, function_id, endpoint_id, kwargs)=}")
+
     task_id = fxc.run(
         *args, function_id=function_id, endpoint_id=endpoint_id, **kwargs
     )
     task_status = fxc.get_task(task_id)
     while task_status.get("pending", False):
+        print(f"DEBUG {(task_status)=}")
+
         time.sleep(1.0)
         task_status = fxc.get_task(task_id)
+
+    print(f"DEBUG {(task_status)=}")
     if task_status.get("status") == "failed":
         exception = task_status.get("exception")
         if exception is not None:
@@ -62,35 +336,95 @@ def _run_and_wait_funcx(
     return task_status.get("result")
 
 
+def register_function(
+    fxc: FuncXClient, function: Callable
+) -> Tuple[str, CachedFunction]:
+    fn_name = function.__name__
+    fn_hash = sha256_function(function)
+    now = int(time.time())
+    funcx_uuid = fxc.register_function(
+        function,
+        f"braid_db_{fn_name}_v{now}",
+        searchable=True,
+    )
+    print(
+        f"Added function {fn_name} as "
+        f"braid_db_{fn_name}_v{now} with uuid {funcx_uuid}"
+    )
+    return fn_name, CachedFunction(funcx_uuid=funcx_uuid, impl_hash=fn_hash)
+
+
+def get_funcx_id_for_function(
+    fxc: FuncXClient,
+    function: Callable,
+    fn_map: Optional[Dict[str, CachedFunction]] = None,
+) -> str:
+    loaded_map = fn_map is None
+    if fn_map is None:
+        fn_map = load_registered_funcx_functions()
+    input_fn_hash = sha256_function(function)
+    for fn_name, fn_cache in fn_map.items():
+        if fn_cache.impl_hash == input_fn_hash:
+            return fn_cache.funcx_uuid
+    name, cache_entry = register_function(fxc, function)
+    fn_map[name] = cache_entry
+    if loaded_map:
+        store_registered_funcx_functions(fn_map)
+    return cache_entry.funcx_uuid
+
+
 def register_functions():
-    fxc = FuncXClient()
-    functions = [add_braid_records]
+    fxc = FuncXClient(use_offprocess_checker=False)
+    functions = [
+        add_transfer_request,
+        add_record_for_action_step,
+        create_invalidation_action,
+    ]
+    fn_map = load_registered_funcx_functions()
     now = int(time.time())
     for function in functions:
+        fn_name = function.__name__
+        fn_hash = sha256_function(function)
+        fn_info = CachedFunction(*fn_map.get(fn_name, [None, None]))
+        if fn_info is not None and fn_info.impl_hash == fn_hash and False:
+            print(
+                f"Function {fn_name} already registered with current hash, "
+                "skipping"
+            )
+            continue
         funcx_uuid = fxc.register_function(
             function,
-            f"braid_db_{function.__name__}_v{now}",
+            f"braid_db_{fn_name}_v{now}",
             searchable=True,
         )
         print(
-            f"Added function {function.__name__} as "
-            f"braid_db_{function.__name__}_v{now} with uuid {funcx_uuid}"
+            f"Added function {fn_name} as "
+            f"braid_db_{fn_name}_v{now} with uuid {funcx_uuid}"
         )
+        fn_map[fn_name] = CachedFunction(
+            funcx_uuid=funcx_uuid, impl_hash=fn_hash
+        )
+    store_registered_funcx_functions(fn_map)
 
 
 def funcx_add_record():
     parser = ArgumentParser()
     parser.add_argument("--endpoint-id", default=_MY_ENDPOINT_ID, type=str)
-    parser.add_argument(
-        "--function-id", default=_ADD_RECORD_FUNCX_UUID, type=str
-    )
+    fn_map = load_registered_funcx_functions()
+    func_id = fn_map.get(
+        # add_records.__name__,
+        # add_records.__name__,
+        funcx_echo.__name__,
+        CachedFunction(funcx_uuid=_ADD_RECORD_FUNCX_UUID, impl_hash="Dummy"),
+    ).funcx_uuid
+    parser.add_argument("--function-id", default=func_id, type=str)
     parser.add_argument("record_name")
     args = parser.parse_args()
 
     fxc = FuncXClient()
     result = _run_and_wait_funcx(
         fxc,
-        name=args.record_name,
+        {"name": args.record_name},
         function_id=args.function_id,
         endpoint_id=args.endpoint_id,
     )
@@ -122,7 +456,7 @@ def main():
     )
 """
     future = fx.submit(
-        add_braid_records, name="funcx_record", endpoint_id=_MY_ENDPOINT_ID
+        add_records, name="funcx_record", endpoint_id=_MY_ENDPOINT_ID
     )
     result = future.result()
     print(f"Add Record Result: {result}")
@@ -132,22 +466,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""
-from funcx.sdk.client import FuncXClient
-
-
-def double(x):
-    return x * 2
-
-count = 10
-
-futures = []
-for i in range(count):
-    future = fx.submit(double, i, endpoint_id=tutorial_endpoint)
-    futures.append(future)
-
-for fu in futures:
-    print(fu.result())
-"""
