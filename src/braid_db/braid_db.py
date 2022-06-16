@@ -351,6 +351,7 @@ class BraidRecord:
         session: Optional[Session] = None,
     ):
         self.db = db
+        self.name = name
         self.derivations = []
         self.uris = []
         # Dict of string->BraidTagValue
@@ -370,9 +371,20 @@ class BraidRecord:
 
     @classmethod
     def from_orm(
-        cls, orm_model: BraidRecordModel, db: Optional[BraidDB] = None
+        cls,
+        orm_model: BraidRecordModel,
+        db: Optional[BraidDB] = None,
+        session: Optional[Session] = None,
     ) -> "BraidRecord":
-        rec = cls(db=db, name=orm_model.name, timestamp=orm_model.time)
+        # Pass DB as none to prevent the init from adding a newly created,
+        # duplicate BraidRecordModel to the DB.
+        rec = cls(
+            db=None,
+            name=orm_model.name,
+            timestamp=orm_model.time,
+            session=session,
+        )
+        rec.db = db
         rec.model = orm_model
         return rec
 
@@ -511,6 +523,21 @@ class BraidRecord:
 
     def set_invalidation_action(
         self,
+        invalidation_action_id: str,
+        session: Optional[Session] = None,
+    ) -> Optional[BraidInvalidationAction]:
+        ia = self.db.query_one_or_none(
+            select(BraidInvalidationAction).where(
+                BraidInvalidationAction.id == invalidation_action_id
+            ),
+            session=session,
+        )
+        if ia is not None:
+            self.model.invalidation_action = ia
+        return ia
+
+    def add_invalidation_action(
+        self,
         action_type: InvalidationActionType,
         name: str,
         cmd: str,
@@ -554,14 +581,13 @@ class BraidRecord:
         if self.db is not None:
             self.db.add_model(invalid_model, session=session)
             self.model.invalidation = invalid_model
-            self.db.add_model(self.model, session=session)
+            # self.db.add_model(self.model, session=session)
             if cascade:
                 derivations = self.db.get_derivations(
                     self.model.record_id, session=session
                 )
                 for derivation in derivations:
-                    dep_rec = BraidRecord(db=self.db)
-                    dep_rec.model = derivation
+                    dep_rec = BraidRecord.from_orm(derivation, db=self.db)
                     dep_rec.invalidate(
                         cause=cause,
                         root_invalidation=invalid_model.id,

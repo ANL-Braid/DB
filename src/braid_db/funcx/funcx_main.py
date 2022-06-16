@@ -49,15 +49,6 @@ def store_registered_funcx_functions(
         print(f"Saving function cached failed due to {e}")
 
 
-def add_func(a: int, b: int) -> int:
-    print("add me")
-    return a + b
-
-
-def funcx_echo(*args, **kwargs):
-    return f"args: {args}; kwargs: {kwargs}"
-
-
 def add_transfer_request(
     previous_step_record_id=None,
     transfer_input={},
@@ -231,8 +222,103 @@ def add_record_for_action_step(
     }
 
 
-def create_invalidation_action() -> None:
-    return
+def create_invalidation_action(
+    name="Not Provided",
+    action_type="shell",
+    command=None,
+    params=None,
+    **kwargs,
+):
+    if command is None:
+        raise ValueError("A value for parameter 'command' must be provided")
+    if params is not None and not isinstance(params, list):
+        raise ValueError(
+            "If parameter 'params' is provided it must be a list of strings "
+            f"not a {type(params)}"
+        )
+
+    import os
+
+    from braid_db import BraidDB
+    from braid_db.models import BraidInvalidationAction
+
+    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+
+    DB_FILE = "~/funcx-braid.db"
+
+    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB.create()
+    session = DB.get_session()
+    if params is not None:
+        ia_params = {"args": params}
+    else:
+        ia_params = None
+    ia = BraidInvalidationAction(
+        name=name, action_type=action_type, cmd=command, params=ia_params
+    )
+    DB.add_model(ia, session=session)
+    session.commit()
+
+    return {"invalidation_action_id": str(ia.id)}
+
+
+def add_invalidation_action_to_record(
+    record_id=None, invalidation_action_id=None, **kwargs
+):
+    if not isinstance(record_id, (dict, str, int)) or not isinstance(
+        invalidation_action_id, (dict, str)
+    ):
+        raise ValueError(
+            "Both 'record_id' and 'invalidation_action_id' "
+            "must be provided as values or as the output of "
+            "previous steps which created these structures"
+        )
+
+    import os
+
+    from braid_db import BraidDB, BraidRecord
+
+    DB_FILE = "~/funcx-braid.db"
+
+    DB = BraidDB(os.path.expanduser(DB_FILE))
+    session = DB.get_session()
+
+    # If the input is a dict, we will assume we were provided the
+    # result from a previous invocation of this same funcx-based
+    # provenance recording operation. So, we navigate into the result
+    # to the point where the previous step would place the record id
+    if isinstance(record_id, dict):
+        record_id = (
+            record_id.get("details", {})
+            .get("result", [dict()])[0]
+            .get("flow_state_record_id", -1)
+        )
+    if isinstance(record_id, str):
+        record_id = int(record_id)
+
+    record_model = DB.get_record_model_by_id(record_id, session=session)
+
+    if record_model is None:
+        raise ValueError(f"Cannot find a DB entry for record id {record_id}")
+
+    if isinstance(invalidation_action_id, dict):
+        invalidation_action_id = (
+            invalidation_action_id.get("details", {})
+            .get("result", [dict()])[0]
+            .get("invalidation_action_id", "")
+        )
+
+    braid_record = BraidRecord.from_orm(record_model, DB)
+
+    ia = braid_record.set_invalidation_action(
+        invalidation_action_id, session=session
+    )
+    session.commit()
+
+    return {
+        "invalidation_action_id": str(ia.id),
+        "flow_state_record_id": record_id,
+    }
 
 
 def add_records(record_dicts, *args, **kwargs) -> list:
@@ -379,6 +465,7 @@ def register_functions():
         add_transfer_request,
         add_record_for_action_step,
         create_invalidation_action,
+        add_invalidation_action_to_record,
     ]
     fn_map = load_registered_funcx_functions()
     now = int(time.time())
@@ -412,9 +499,7 @@ def funcx_add_record():
     parser.add_argument("--endpoint-id", default=_MY_ENDPOINT_ID, type=str)
     fn_map = load_registered_funcx_functions()
     func_id = fn_map.get(
-        # add_records.__name__,
-        # add_records.__name__,
-        funcx_echo.__name__,
+        add_records.__name__,
         CachedFunction(funcx_uuid=_ADD_RECORD_FUNCX_UUID, impl_hash="Dummy"),
     ).funcx_uuid
     parser.add_argument("--function-id", default=func_id, type=str)

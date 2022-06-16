@@ -108,7 +108,7 @@ def test_invalidate_action(braid_db: BraidDB, monkeypatch):
     with braid_db.get_session() as session:
         irec = BraidRecord(braid_db, name="To Be Invalidated")
         assert irec.record_id is not None
-        invalidation_action = irec.set_invalidation_action(
+        invalidation_action = irec.add_invalidation_action(
             InvalidationActionType.SHELL_COMMAND,
             "invalidation shell command",
             "echo",
