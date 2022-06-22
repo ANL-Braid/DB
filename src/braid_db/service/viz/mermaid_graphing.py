@@ -11,7 +11,6 @@ _html_header = """
             mermaid.initialize({ startOnLoad: true });
         </script>
 
-        Here is one mermaid diagram:
         <div class="mermaid">
 
 """
