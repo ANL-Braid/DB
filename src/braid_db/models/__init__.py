@@ -1,5 +1,5 @@
 from .braid_models import (
-    BraidDependencyModel,
+    BraidDerivationModel,
     BraidInvalidationAction,
     BraidInvalidationModel,
     BraidModelBase,
@@ -11,8 +11,8 @@ from .braid_models import (
 )
 
 __all__ = (
-    "BraidDependencyModel",
     "BraidInvalidationAction",
+    "BraidDerivationModel",
     "BraidInvalidationModel",
     "BraidModelBase",
     "BraidRecordModel",

@@ -3,7 +3,7 @@ from typing import List
 from sqlmodel import Session, select
 
 from braid_db.models import (
-    BraidDependencyModel,
+    BraidDerivationModel,
     BraidRecordModel,
     BraidTagsModel,
     BraidUrisModel,
@@ -50,25 +50,25 @@ def test_create_models(session: Session):
     session.add(rec2)
     session.commit()
 
-    dependency_relationship = BraidDependencyModel(
-        record_id=rec.record_id, dependency=rec2.record_id
+    derivation_relationship = BraidDerivationModel(
+        record_id=rec.record_id, derivation=rec2.record_id
     )
-    session.add(dependency_relationship)
+    session.add(derivation_relationship)
     session.commit()
 
-    dependencies = session.exec(
-        select(BraidDependencyModel).where(
-            BraidDependencyModel.dependency == rec2.record_id
+    derivations = session.exec(
+        select(BraidDerivationModel).where(
+            BraidDerivationModel.derivation == rec2.record_id
         )
     )
 
     dep_recs: List[BraidRecordModel] = []
 
-    for dep in dependencies:
-        dependency_id = dep.dependency
+    for dep in derivations:
+        derivation_id = dep.derivation
         dep_rec = session.exec(
             select(BraidRecordModel).where(
-                BraidRecordModel.record_id == dependency_id
+                BraidRecordModel.record_id == derivation_id
             )
         ).one_or_none()
         assert dep_rec is not None
