@@ -7,8 +7,8 @@ from sqlmodel import Session, SQLModel, create_engine
 from braid_db import BraidDB
 
 sqlite_file_name = "pytests.db"
-# sqlite_url = f"sqlite:///{sqlite_file_name}"
-sqlite_url = "sqlite://"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+# sqlite_url = "sqlite://"
 create_engine_kwargs = {
     "echo": True,
     "poolclass": StaticPool,

@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import subprocess
 from enum import Enum, unique
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, TypeVar, Union
@@ -12,13 +13,17 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.engine.result import ScalarResult
 from sqlmodel.sql.expression import Select
 
+from .gen_tools import substitute_vals
 from .models import (
-    BraidDependencyModel,
+    BraidDerivationModel,
+    BraidInvalidationAction,
     BraidInvalidationModel,
     BraidModelBase,
     BraidRecordModel,
     BraidTagsModel,
     BraidUrisModel,
+    InvalidationActionParamsType,
+    InvalidationActionType,
 )
 
 SCHEMA_FILE_NAME = "braid-db.sql"
@@ -35,8 +40,25 @@ class BraidTagType(Enum):
     INTEGER = 2
     FLOAT = 3
 
+    @classmethod
+    def type_for_value(cls):
+        if isinstance(cls, int):
+            return cls.INTEGER
+        elif isinstance(cls, float):
+            return cls.FLOAT
+        elif isinstance(cls, str):
+            return cls.STRING
+        else:
+            return cls.NONE
+
+    def to_python_type(self):
+        type_map = {"STRING": str, "INTEGER": int, "FLOAT": float}
+        name = self.name
+        return type_map.get(name)
+
 
 BraidModelTypeVar = TypeVar("BraidModelTypeVar", bound=BraidModelBase)
+TagValueType = Union[str, int, float]
 
 
 class BraidTagValue:
@@ -162,8 +184,8 @@ class BraidDB:
                 text = (
                     f"[{record.record_id:5}] : {record.name:16} {record.time}"
                 )
-                deps = self.get_dependencies(record_id, session=session)
-                text = text + " <- " + str([d.record_id for d in deps])
+                derivatives = self.get_derivations(record_id, session=session)
+                text = text + " <- " + str([d.record_id for d in derivatives])
                 uris = self.get_uris(record_id, session=session)
                 if uris is not None:
                     for uri in uris:
@@ -196,27 +218,55 @@ class BraidDB:
                 text += "%s = '%s'" % (key, tags[key].value)
             records[record_id] = text
 
-    def get_dependencies(
+    def get_predecessors(
         self, record_id, session: Optional[Session] = None
     ) -> Iterable[BraidRecordModel]:
         """
-        Return list of dependent records of a record based on its id
+        Return list of predecessor records in the derivation hierarchy of a
+                record based on its id"""
+        self.trace(f"DB.get_predecssors({record_id}) ...")
+        predecessors = self.query_all(
+            select(BraidDerivationModel).where(
+                BraidDerivationModel.derivation == record_id
+            ),
+            session=session,
+        )
+
+        pred_recs: List[BraidRecordModel] = []
+
+        for pred in predecessors:
+            pred_id = pred.record_id
+            pred_rec = self.query_one_or_none(
+                select(BraidRecordModel).where(
+                    BraidRecordModel.record_id == pred_id
+                ),
+                session=session,
+            )
+            pred_recs.append(pred_rec)
+
+        return pred_recs
+
+    def get_derivations(
+        self, record_id, session: Optional[Session] = None
+    ) -> Iterable[BraidRecordModel]:
         """
-        self.trace(f"DB.get_dependencies({record_id}) ...")
-        dependencies = self.query_all(
-            select(BraidDependencyModel).where(
-                BraidDependencyModel.record_id == record_id
+        Return list of derived records of a record based on its id
+        """
+        self.trace(f"DB.get_derivations({record_id}) ...")
+        derivations = self.query_all(
+            select(BraidDerivationModel).where(
+                BraidDerivationModel.record_id == record_id
             ),
             session=session,
         )
 
         dep_recs: List[BraidRecordModel] = []
 
-        for dep in dependencies:
-            dependency_id = dep.dependency
+        for dep in derivations:
+            derivation_id = dep.derivation
             dep_rec = self.query_one_or_none(
                 select(BraidRecordModel).where(
-                    BraidRecordModel.record_id == dependency_id
+                    BraidRecordModel.record_id == derivation_id
                 ),
                 session=session,
             )
@@ -269,7 +319,7 @@ class BraidDB:
         Just the sum of the table sizes
         """
         result = 0
-        tables = ["records", "dependencies", "uris", "tags"]
+        tables = ["records", "derivations", "uris", "tags"]
         for table in tables:
             self.sql.select(table, "count(record_id)")
             row = self.sql.cursor.fetchone()
@@ -298,9 +348,11 @@ class BraidRecord:
         name=None,
         timestamp=None,
         debug=True,
+        session: Optional[Session] = None,
     ):
         self.db = db
-        self.dependencies = []
+        self.name = name
+        self.derivations = []
         self.uris = []
         # Dict of string->BraidTagValue
         self.tags = {}
@@ -314,12 +366,25 @@ class BraidRecord:
         else:
             self.timestamp = timestamp
         self.model = BraidRecordModel(name=name, time=self.timestamp)
+        if self.db is not None:
+            self.db.add_model(self.model, session=session)
 
     @classmethod
     def from_orm(
-        cls, orm_model: BraidRecordModel, db: Optional[BraidDB] = None
+        cls,
+        orm_model: BraidRecordModel,
+        db: Optional[BraidDB] = None,
+        session: Optional[Session] = None,
     ) -> "BraidRecord":
-        rec = cls(db=db, name=orm_model.name, timestamp=orm_model.time)
+        # Pass DB as none to prevent the init from adding a newly created,
+        # duplicate BraidRecordModel to the DB.
+        rec = cls(
+            db=None,
+            name=orm_model.name,
+            timestamp=orm_model.time,
+            session=session,
+        )
+        rec.db = db
         rec.model = orm_model
         return rec
 
@@ -343,7 +408,7 @@ class BraidRecord:
         cls,
         db: BraidDB,
         key: str,
-        value: Union[str, int, float],
+        value: TagValueType,
         session: Session,
     ) -> Iterator["BraidRecord"]:
         model_tags: Iterable[BraidTagsModel] = db.query_all(
@@ -362,7 +427,7 @@ class BraidRecord:
         cls,
         db: BraidDB,
         key: str,
-        value: Union[str, int, float],
+        value: TagValueType,
         session: Session,
         cascade: bool = False,
         cause: Optional[str] = None,
@@ -382,23 +447,42 @@ class BraidRecord:
                 self.db.add_model(self.model)
         return self.model.record_id
 
-    def add_dependency(self, record: "BraidRecord"):
+    def add_derivation(
+        self,
+        record: "BraidRecord",
+        session: Optional[Session] = None,
+    ):
+
         """record: a BraidRecord"""
-        self.dependencies.append(record)
-        dep_model = BraidDependencyModel(
-            record_id=self.record_id, dependency=record.model.record_id
+        self.derivations.append(record)
+        dep_model = BraidDerivationModel(
+            record_id=self.record_id, derivation=record.model.record_id
         )
         if self.db is not None:
-            self.db.add_model(dep_model)
+            dep_model = self.db.add_model(dep_model, session=session)
+        return dep_model
 
-    def add_uri(self, uri: str):
+    def add_uri(
+        self,
+        uri: str,
+        session: Optional[Session] = None,
+    ):
         """uri: a string URI"""
         self.uris.append(uri)
         uri_model = BraidUrisModel(record_id=self.record_id, uri=uri)
         if self.db is not None:
-            self.db.add_model(uri_model)
+            self.db.add_model(uri_model, session=session)
 
-    def add_tag(self, key, value, type_=BraidTagType.STRING) -> int:
+    def get_uris(self) -> List[str]:
+        return [u.uri for u in self.model.uris]
+
+    def add_tag(
+        self,
+        key,
+        value,
+        type_=BraidTagType.STRING,
+        session: Optional[Session] = None,
+    ) -> int:
         """key:   a string key name
         value: a string value
         """
@@ -415,14 +499,71 @@ class BraidRecord:
             tag_type=type_.value,
         )
         if self.db is not None:
-            self.db.add_model(tag_model)
+            self.db.add_model(tag_model, session=session)
         return tag_model.id
+
+    def tags_as_dict(
+        self, session: Optional[Session] = None
+    ) -> Dict[str, TagValueType]:
+        tags: Iterable[BraidTagsModel] = self.db.query_all(
+            select(BraidTagsModel).where(
+                BraidTagsModel.record_id == self.record_id
+            ),
+            session=session,
+        )
+        ret_dict: Dict[str, TagValueType] = {}
+        for tag in tags:
+            key = tag.key
+            value = tag.value
+            # tag_type = tag.tag_type
+            # TODO: Use tag_type to coerce value to the proper python type
+            ret_dict[key] = value
+
+        return ret_dict
+
+    def set_invalidation_action(
+        self,
+        invalidation_action_id: str,
+        session: Optional[Session] = None,
+    ) -> Optional[BraidInvalidationAction]:
+        ia = self.db.query_one_or_none(
+            select(BraidInvalidationAction).where(
+                BraidInvalidationAction.id == invalidation_action_id
+            ),
+            session=session,
+        )
+        if ia is not None:
+            self.model.invalidation_action = ia
+        return ia
+
+    def add_invalidation_action(
+        self,
+        action_type: InvalidationActionType,
+        name: str,
+        cmd: str,
+        params: InvalidationActionParamsType,
+        session: Optional[Session] = None,
+    ) -> BraidInvalidationAction:
+        # TODO: Some validation that the paramters are correct
+        invalidation_action = BraidInvalidationAction(
+            action_type=action_type,
+            name=name,
+            cmd=cmd,
+            params=params,
+            record_id=self.model.record_id,
+        )
+        self.model.invalidation_action = invalidation_action
+        if self.db is not None:
+            self.db.add_model(invalidation_action, session=session)
+        return invalidation_action
 
     def invalidate(
         self,
         cause: Optional[str] = None,
         root_invalidation: Optional[Union[str, UUID]] = None,
         cascade=True,
+        perform_invalidation_action=True,
+        perform_invalidation_action_on_cascade=True,
         session: Optional[Session] = None,
     ) -> Optional["BraidRecord"]:
         if self.model.invalidation_id is not None:
@@ -440,22 +581,61 @@ class BraidRecord:
         if self.db is not None:
             self.db.add_model(invalid_model, session=session)
             self.model.invalidation = invalid_model
-            self.db.add_model(self.model, session=session)
             if cascade:
-                dependencies = self.db.get_dependencies(
+                derivations = self.db.get_derivations(
                     self.model.record_id, session=session
                 )
-                for dependency in dependencies:
-                    dep_rec = BraidRecord(db=self.db)
-                    dep_rec.model = dependency
+                for derivation in derivations:
+                    dep_rec = BraidRecord.from_orm(derivation, db=self.db)
                     dep_rec.invalidate(
                         cause=cause,
                         root_invalidation=invalid_model.id,
                         cascade=cascade,
+                        perform_invalidation_action=(
+                            perform_invalidation_action_on_cascade
+                        ),
+                        perform_invalidation_action_on_cascade=(
+                            perform_invalidation_action_on_cascade
+                        ),
                         session=session,
                     )
-
+        self.perform_invalidation_action(session=session)
         return self
+
+    def perform_invalidation_action(
+        self, session: Optional[Session] = None
+    ) -> None:
+        invalidation_action = self.model.invalidation_action
+        if invalidation_action is None:
+            return
+
+        return
+
+        substitution_vals = self.tags_as_dict(session)
+        substitution_vals["name"] = self.model.name
+        substitution_vals["uri"] = self.model.uri
+
+        cmd = substitute_vals(invalidation_action.cmd, substitution_vals)
+        params = substitute_vals(invalidation_action.params, substitution_vals)
+
+        if (
+            invalidation_action.action_type
+            is InvalidationActionType.SHELL_COMMAND
+        ):
+            cmd_line = [cmd]
+            cmd_line.extend(params.get("args", []))
+            action_run = subprocess.run(cmd_line)
+            self.debug(
+                f"Return of command {cmd} {params} was: "
+                f"{action_run.returncode}"
+            )
+        elif (
+            invalidation_action.action_type
+            is InvalidationActionType.AUTOMATE_EVENT
+        ):
+            ...
+        else:
+            ...
 
     def is_valid(self, session: Optional[Session] = None) -> bool:
         return self.model.invalidation_id is None
@@ -480,9 +660,9 @@ class BraidFact(BraidRecord):
     def __init__(self, db=None, name=None):
         super().__init__(db=db, name=name)
 
-    def add_dependency(self, record):
+    def add_derivation(self, record):
         """record: a BraidRecord"""
-        raise Exception("BraidFacts do not have dependencies!")
+        raise Exception("BraidFacts do not have derivatives!")
 
     def store(self) -> int:
         self.db.add_model(self.model)
@@ -492,7 +672,7 @@ class BraidFact(BraidRecord):
 
 class BraidData(BraidRecord):
 
-    """Examples: data in the system with dependencies:
+    """Examples: data in the system with derivatives:
     Simulation outputs, data analyses, experiment outputs
     """
 
@@ -514,7 +694,7 @@ class BraidModel(BraidRecord):
 
     def update(self, record):
         """record: a BraidRecord"""
-        super().add_dependency(record)
+        super().add_derivation(record)
 
     def store(self) -> int:
         self.db.add_model(self.model)

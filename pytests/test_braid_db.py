@@ -1,4 +1,8 @@
-from braid_db import BraidDB, BraidRecord
+from typing import Optional
+
+from sqlmodel import Session
+
+from braid_db import BraidDB, BraidRecord, InvalidationActionType
 
 
 def test_create_db(braid_db: BraidDB):
@@ -35,6 +39,23 @@ def test_record_invalidate(braid_db: BraidDB):
 
     rec3 = BraidRecord.by_record_id(braid_db, record_id)
     assert not rec3.is_valid()
+
+
+_test_tags = {"string_tag": "AStringVal", "int_tag": 10, "float_tag": 10.5}
+
+
+def add_tags_to_record(
+    rec: BraidRecord, tags=_test_tags, session: Optional[Session] = None
+):
+    for name, val in tags.items():
+        rec.add_tag(name, val, session=session)
+
+
+def test_set_get_tags(braid_db: BraidRecord):
+    rec = BraidRecord(braid_db, name="tag_test_record")
+    add_tags_to_record(rec)
+    lookup_tags = rec.tags_as_dict()
+    print(f"DEBUG {(lookup_tags)=}")
 
 
 def test_tag_create_and_lookup(braid_db: BraidDB):
@@ -81,3 +102,19 @@ def test_tag_create_and_invalidate(braid_db: BraidDB):
     rec2_lookup = BraidRecord.by_record_id(braid_db, rec2_id)
     assert rec2_lookup is not None
     assert rec2_lookup.is_valid()
+
+
+def test_invalidate_action(braid_db: BraidDB, monkeypatch):
+    with braid_db.get_session() as session:
+        irec = BraidRecord(braid_db, name="To Be Invalidated")
+        assert irec.record_id is not None
+        invalidation_action = irec.add_invalidation_action(
+            InvalidationActionType.SHELL_COMMAND,
+            "invalidation shell command",
+            "echo",
+            {"args": ["Hello", "{name}"]},
+            session=session,
+        )
+        session.commit()
+        assert invalidation_action is not None
+        irec.invalidate("Cause this is a test", session=session)
