@@ -581,7 +581,6 @@ class BraidRecord:
         if self.db is not None:
             self.db.add_model(invalid_model, session=session)
             self.model.invalidation = invalid_model
-            # self.db.add_model(self.model, session=session)
             if cascade:
                 derivations = self.db.get_derivations(
                     self.model.record_id, session=session
@@ -609,6 +608,8 @@ class BraidRecord:
         invalidation_action = self.model.invalidation_action
         if invalidation_action is None:
             return
+
+        return
 
         substitution_vals = self.tags_as_dict(session)
         substitution_vals["name"] = self.model.name

@@ -18,6 +18,7 @@ def main():
         rec = BraidRecord.by_record_id(db, record_id, session=session)
         print(f"Invalidating record id {record_id} with name {rec.name}")
         rec.invalidate(cause=cause, session=session)
+    session.commit()
 
 
 if __name__ == "__main__":

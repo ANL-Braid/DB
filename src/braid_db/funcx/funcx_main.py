@@ -60,13 +60,14 @@ def add_transfer_request(
 
     from braid_db import BraidDB, BraidRecord
 
-    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+    DEFAULT_DB_FILE = "~/funcx-braid.db"
 
-    DB_FILE = "~/funcx-braid.db"
+    db_file = os.getenv("BRAID_DB_FILE", os.path.expanduser(DEFAULT_DB_FILE))
 
-    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB = BraidDB(db_file)
     DB.create()
     session = DB.get_session()
+
     transfer_items = transfer_input.get("transfer_items", [])
     src_endpoint = transfer_input.get("source_endpoint_id")
     dest_endpoint = transfer_input.get("destination_endpoint_id")
@@ -113,8 +114,8 @@ def add_transfer_request(
 
     return {
         "flow_state_record_id": transfer_record.record_id,
-        "source_record_ids": [s.record_id for s in source_records],
-        "destination_record_ids": [d.record_id for d in dest_records],
+        "input_record_ids": [s.record_id for s in source_records],
+        "output_record_ids": [d.record_id for d in dest_records],
     }
 
 
@@ -130,94 +131,291 @@ def sha256_function(function: Callable) -> str:
 
 def add_record_for_action_step(
     step_name=None,
-    step_parameters=None,
+    tags=None,
     step_result=None,
-    previous_step_record_id=None,
+    previous_step_output=None,
     other_predecessor_record_ids=None,
+    input_record_ids=None,
+    inputs_from_referenced_outputs=False,
+    output_record_ids=None,
+    outputs_from_referenced_inputs=False,
+    input_record_defs=None,
+    output_record_defs=None,
     uris=None,
     **kwargs,
 ):
+    assert tags is None or isinstance(
+        tags, dict
+    ), f"Value for 'tags' must be a dictionary not {tags}"
+    assert uris is None or isinstance(
+        uris, (str, list)
+    ), f"Value for uris must be a string or a list of strings not {uris}"
+    assert step_name is None or isinstance(
+        step_name, str
+    ), f"Got unexpected value for step_name {step_name}"
+
+    import logging
     import os
 
     from braid_db import BraidDB, BraidRecord
     from braid_db.models import BraidDerivationModel
 
-    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+    DEFAULT_LOG_FILE = "~/funcx-braid.log"
 
-    DB_FILE = "~/funcx-braid.db"
+    log_file = os.getenv(
+        "BRAID_LOG_FILE", os.path.expanduser(DEFAULT_LOG_FILE)
+    )
 
-    DB = BraidDB(os.path.expanduser(DB_FILE))
+    logging.basicConfig(
+        filename=log_file,
+        filemode="a",
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.DEBUG,
+    )
+
+    logging.info("**************START*************")
+    logging.info("Request to add record for step ")
+
+    if kwargs:
+        logging.info(f"***** Unexpected arguments: {kwargs}")
+
+    DEFAULT_DB_FILE = "~/funcx-braid.db"
+
+    db_file = os.getenv("BRAID_DB_FILE", os.path.expanduser(DEFAULT_DB_FILE))
+
+    DB = BraidDB(db_file)
     DB.create()
     session = DB.get_session()
 
-    step_record = BraidRecord(db=DB, name=f"Action Step {step_name}")
-    step_record_id = step_record.record_id
+    ############################
+    def extract_record_ids_from_other_provenance_step(
+        previous_step_output, previous_step_field_name="flow_state_record_id"
+    ):
+        logging.info(
+            f"Looking for record_id in field {previous_step_field_name} in "
+            f"{previous_step_output}"
+        )
+        return_record_ids = []
+        if previous_step_output is None:
+            return return_record_ids
+        if isinstance(previous_step_output, list):
+            previous_steps = previous_step_output
+        else:
+            previous_steps = [previous_step_output]
+
+        for previous_step in previous_steps:
+            logging.info(f"Searching in step output {previous_step}")
+            # If the input is a dict, we will assume we were provided the
+            # result from a previous invocation of this same funcx-based
+            # provenance recording operation. So, we navigate into the result
+            # to the point where the previous step would place the record id
+            if isinstance(previous_step, dict):
+                previous_step = (
+                    previous_step.get("details", {})
+                    .get("result", [dict()])[0]
+                    .get(previous_step_field_name, [])
+                )
+            if isinstance(previous_step, (str, int)):
+                previous_step = [previous_step]
+            if isinstance(previous_step, list):
+                return_record_ids.extend([int(p) for p in previous_step])
+        logging.info(f"Previous step lookup found records {return_record_ids}")
+        return return_record_ids
+
+    ###########################
+
+    ###########################
+    def add_record(
+        name: str, uris, tags, predecessor_record_ids, derivative_record_ids
+    ):
+        logging.info(f"Adding record {(name, uris, predecessor_record_ids)=}")
+        record = BraidRecord(db=DB, name=name)
+        record_id = record.record_id
+        if isinstance(uris, str):
+            uris = [uris]
+            if isinstance(uris, list):
+                for uri in uris:
+                    record.add_uri(uri, session=session)
+
+        # If we have tags, we recurse through the values building dotted key
+        # names.
+        if isinstance(tags, dict):
+            to_traverse = [(tags, "")]
+            while to_traverse:
+                vals, prefix = to_traverse.pop()
+                for k, v in vals.items():
+                    if isinstance(v, dict):
+                        to_traverse.append((v, k + "."))
+                    else:
+                        record.add_tag(prefix + k, str(v), session=session)
+
+        if isinstance(predecessor_record_ids, (int, str)):
+            predecessor_record_ids = [predecessor_record_ids]
+
+        if predecessor_record_ids is None:
+            predecessor_record_ids = []
+
+        for predecessor_record_id in set(predecessor_record_ids):
+            if isinstance(predecessor_record_id, str):
+                predecessor_record_id = int(predecessor_record_id)
+            predecessor_record = DB.get_record_model_by_id(
+                predecessor_record_id, session=session
+            )
+            logging.info(
+                f"Adding (pred) derivation from {predecessor_record_id} "
+                f"to {record_id}"
+            )
+            if predecessor_record is not None:
+                derivation_model = BraidDerivationModel(
+                    record_id=predecessor_record_id,
+                    derivation=record_id,
+                )
+                DB.add_model(derivation_model, session=session)
+            else:
+                ...  # TODO: Raise some sort of exception
+
+        if isinstance(derivative_record_ids, (int, str)):
+            derivative_record_ids = [derivative_record_ids]
+
+        if derivative_record_ids is None:
+            derivative_record_ids = []
+
+        for derivative_record_id in set(derivative_record_ids):
+            if isinstance(derivative_record_id, str):
+                derivative_record_id = int(derivative_record_id)
+            derivative_record = DB.get_record_model_by_id(
+                derivative_record_id, session=session
+            )
+            logging.info(
+                f"Adding (dep) derivation from {record_id} to "
+                f"{derivative_record_id}"
+            )
+            if derivative_record is not None:
+                derivation_model = BraidDerivationModel(
+                    record_id=record_id,
+                    derivation=derivative_record_id,
+                )
+                DB.add_model(derivation_model, session=session)
+            else:
+                ...  # TODO: Raise some sort of exception
+
+        logging.info(f"Created record with id {record.record_id}")
+        return record
+
+    ###########################
+
+    if tags is None:
+        tags = {}
     exception_str = None
     if step_result is None:
         step_result = "Not Provided"
     elif isinstance(step_result, dict):
         step_result = step_result.get("status", "Not Present in Step Results")
+    tags["status"] = str(step_result)
 
-    step_record.add_tag("status", str(step_result), session=session)
+    predecessor_record_ids = []
 
-    if isinstance(uris, str):
-        uris = [uris]
-    if isinstance(uris, list):
-        for uri in uris:
-            step_record.add_uri(uri, session=session)
+    if previous_step_output is not None:
+        previous_step_record_ids = (
+            extract_record_ids_from_other_provenance_step(previous_step_output)
+        )
+        predecessor_record_ids.extend(previous_step_record_ids)
 
-    # If we have step parameters, we setup to recurse through the values.
-    if isinstance(step_parameters, dict):
-        to_traverse = [(step_parameters, "")]
-        while to_traverse:
-            vals, prefix = to_traverse.pop()
-            for k, v in vals.items():
-                if isinstance(v, dict):
-                    to_traverse.append((v, k + "."))
-                else:
-                    step_record.add_tag(prefix + k, str(v), session=session)
+    if isinstance(other_predecessor_record_ids, list):
+        predecessor_record_ids.extend(other_predecessor_record_ids)
 
-    previous_step_name = None
-    if previous_step_record_id is not None:
-        try:
-            # If the input is a dict, we will assume we were provided the
-            # result from a previous invocation of this same funcx-based
-            # provenance recording operation. So, we navigate into the result
-            # to the point where the previous step would place the record id
-            if isinstance(previous_step_record_id, dict):
-                previous_step_record_id = (
-                    previous_step_record_id.get("details", {})
-                    .get("result", [dict()])[0]
-                    .get("flow_state_record_id", -1)
-                )
-            if isinstance(previous_step_record_id, str):
-                previous_step_record_id = int(previous_step_record_id)
+    if input_record_ids is None:
+        input_record_ids = []
 
-            previous_step_model = DB.get_record_model_by_id(
-                previous_step_record_id, session=session
-            )
-            if previous_step_model is not None:
-                previous_step_name = previous_step_model.name
-                derivation_model = BraidDerivationModel(
-                    record_id=previous_step_record_id,
-                    derivation=step_record_id,
-                )
-                DB.add_model(derivation_model, session=session)
+    if not isinstance(input_record_ids, list):
+        input_record_ids = [input_record_ids]
+
+    return_input_record_ids = []
+    logging.debug(f"{(input_record_ids)=}")
+    for input_record_id in input_record_ids:
+        if isinstance(input_record_id, dict):
+            if inputs_from_referenced_outputs:
+                field = "output_record_ids"
             else:
-                previous_step_name = (
-                    f"Unable to get record by id for {previous_step_record_id}"
+                field = "input_record_ids"
+            found_input_record_id = (
+                extract_record_ids_from_other_provenance_step(
+                    input_record_id, previous_step_field_name=field
                 )
-        except Exception as ve:
-            print(
-                "Unable to get record id from value "
-                f"{previous_step_record_id} on {ve}"
             )
-            exception_str = str(ve)
+            return_input_record_ids.extend(found_input_record_id)
+        else:
+            return_input_record_ids.append(input_record_id)
+    logging.debug(f"{(return_input_record_ids)=}")
+
+    if isinstance(input_record_defs, dict):
+        input_record_defs = [input_record_defs]
+
+    if isinstance(input_record_defs, list):
+        for input_record_def in input_record_defs:
+            input_rec = add_record(
+                input_record_def.get("name", "NoNameGiven"),
+                input_record_def.get("uris"),
+                input_record_def.get("tags"),
+                None,
+                None,
+            )
+            return_input_record_ids.append(input_rec.record_id)
+
+    if output_record_ids is None:
+        output_record_ids = []
+
+    if not isinstance(output_record_ids, list):
+        output_record_ids = [output_record_ids]
+
+    return_output_record_ids = []
+    for output_record_id in output_record_ids:
+        if isinstance(output_record_id, dict):
+            if outputs_from_referenced_inputs:
+                field = "input_record_ids"
+            else:
+                field = "output_record_ids"
+            found_output_record_ids = (
+                extract_record_ids_from_other_provenance_step(
+                    output_record_id, previous_step_field_name=field
+                )
+            )
+            return_output_record_ids.extend(found_output_record_ids)
+        else:
+            return_output_record_ids.append(output_record_id)
+
+    if isinstance(output_record_defs, dict):
+        output_record_defs = [output_record_defs]
+
+    if isinstance(output_record_defs, list):
+        for output_record_def in output_record_defs:
+            output_rec = add_record(
+                output_record_def.get("name", "NoNameGiven"),
+                output_record_def.get("uris"),
+                output_record_def.get("tags"),
+                None,
+                None,
+            )
+            return_output_record_ids.append(output_rec.record_id)
+
+    predecessor_record_ids.extend(return_input_record_ids)
+    step_record = add_record(
+        name=f"Action Step {step_name}",
+        uris=uris,
+        tags=tags,
+        predecessor_record_ids=predecessor_record_ids,
+        derivative_record_ids=return_output_record_ids,
+    )
+
     session.commit()
+
+    logging.info("************** END *************")
+
     return {
         "flow_state_record_id": step_record.record_id,
-        "previous_step_record_id": previous_step_record_id,
-        "previous_step_name": previous_step_name,
+        "input_record_ids": return_input_record_ids,
+        "output_record_ids": return_output_record_ids,
         "exception_str": exception_str,
     }
 
@@ -242,13 +440,14 @@ def create_invalidation_action(
     from braid_db import BraidDB
     from braid_db.models import BraidInvalidationAction
 
-    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+    DEFAULT_DB_FILE = "~/funcx-braid.db"
 
-    DB_FILE = "~/funcx-braid.db"
+    db_file = os.getenv("BRAID_DB_FILE", os.path.expanduser(DEFAULT_DB_FILE))
 
-    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB = BraidDB(db_file)
     DB.create()
     session = DB.get_session()
+
     if params is not None:
         ia_params = {"args": params}
     else:
@@ -325,7 +524,6 @@ def add_records(record_dicts, *args, **kwargs) -> list:
     import os
     from typing import Optional
 
-    # from typing import Any, Dict, List, Union
     from braid_db import (
         APIBraidRecordInput,
         APIBraidRecordOutput,
@@ -333,11 +531,11 @@ def add_records(record_dicts, *args, **kwargs) -> list:
         BraidRecord,
     )
 
-    # from braid_db.models.api import APIBraidRecordInput, APIBraidRecordOutput
+    DEFAULT_DB_FILE = "~/funcx-braid.db"
 
-    DB_FILE = "~/funcx-braid.db"
+    db_file = os.getenv("BRAID_DB_FILE", os.path.expanduser(DEFAULT_DB_FILE))
 
-    DB = BraidDB(os.path.expanduser(DB_FILE))
+    DB = BraidDB(db_file)
     DB.create()
     session = DB.get_session()
 
