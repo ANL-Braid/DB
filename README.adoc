@@ -180,9 +180,18 @@ Setting up to run with funcx is a multi-step process:
 
 3. If you want the funcx hosted braid db to store files in a different location, edit `src/braid_db/funcx/funcx_main.py` and change the value of `DB_FILE` in the function `funcx_add_record`. If not edited the funcx-based operations will store their entries in the file `~/funcx-braid.db`.
 
-4. Register the function(s) to be exposed to funcx. This can be done with the command `.venv/bin/register-funcx` (or `poetry run register-funcx`). Note that this requires that the command `poetry install` has previously been run so that the script is installed in the virtual environment (in the `.venv/bin` directory). As before, take note of the UUID for the registered function.
+4. Register the function(s) to be exposed to funcx. This can be done with the command `.venv/bin/register-funcx` (or `poetry run register-funcx`). Note that this requires that the command `poetry install` has previously been run so that the script is installed in the virtual environment (in the `.venv/bin` directory). This will register a number of functions printing the name of the function and the funcx uuid for the registered function.
 
-5. To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --endpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.
+The functions are:
+  * `add_record_for_action_step`: This simply adds a record to the DB which is commonly used to represent a step of a Globus Flow having been run.
+  * `add_transfer_request`: This is a helper for adding a record to the DB representing a Globus Flow step using the Globus Transfer Service. It will also create records for the source and destination of the Transfer with dependency from the source, to the workflow step to the destination.
+  * `create_invalidation_action`: Creates an invalidation action in the DB. It takes as input the operations to perform when an invalidation should occur.
+  * `add_invalidation_action_to_record`: Creates an association between a record in the DB and an invalidation action (most likely created with the `create_invalidation_action` function above.
+
+The various functions return output in a format which places state into a running Globus Flow which can be consumed by subsequent steps which invoke other functions. For example, the `add_record_for_action_state` function returns the DB record id in its output. Subsequent calls to this function within a Flow can reference this output as a "predecessor" and the function will interpret the input such that it can determine the previous step's record id and create the dependency between the newly created record and the previous record.
+
+
+5. *Deprecated at this time* To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --endpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.  *Deprecated at this time*
 
 
 
