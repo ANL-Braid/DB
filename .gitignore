@@ -3,3 +3,7 @@
 *.db
 # Backups of databases
 *.bak
+# Local working area
+dev-scratch/
+# Tool scratch stuff
+.ropeproject/
