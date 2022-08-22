@@ -695,12 +695,9 @@ def register_functions():
 def funcx_add_record():
     parser = ArgumentParser()
     parser.add_argument("--endpoint-id", default=_MY_ENDPOINT_ID, type=str)
-    fn_map = load_registered_funcx_functions()
-    func_id = fn_map.get(
-        add_records.__name__,
-        CachedFunction(funcx_uuid=_ADD_RECORD_FUNCX_UUID, impl_hash="Dummy"),
-    ).funcx_uuid
-    parser.add_argument("--function-id", default=func_id, type=str)
+    parser.add_argument(
+        "--function-id", default=_ADD_RECORD_FUNCX_UUID, type=str
+    )
     parser.add_argument("record_name")
     args = parser.parse_args()
 
