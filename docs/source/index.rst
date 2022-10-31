@@ -176,14 +176,17 @@ https://python-poetry.org/docs/#osx--linux--bashonwindows-install-instructions
 * Tests can be run using scripts in the `test` directory.
 * Unit tests can be run with the command `poetry run pytest pytests/` which will run the pytest test driver from the current virtual environment on all then tests defined in the `pytests` directory.
 
-== Working with FuncX
+Working with FuncX
+==================
 
-=== Setup
+Setup
+-----
 
 . `pip install funcx funcx-endpoint`
 
 
-=== Usage
+Usage
+-----
 
 Using FuncX requires that the `funcx-endpoint` be installed in a working environment whether it is a conda, pip or otherwise installed process.
 
@@ -208,7 +211,8 @@ The various functions return output in a format which places state into a runnin
 
 5. *Deprecated at this time* To test invoking the add record function via funcx, run the command: `.venv/bin/funcx-add-record --endpoint-id <endpoint_id> --function-id <function_id>` using the value for endpoint id and function id output in the previous steps. This should output the record id. One can use a tool like `sqlite3` to verify that records are stored in the database file.  *Deprecated at this time*
 
-== Developer notes
+Developer notes
+===============
 
 * There is a high-level SQL API wrapper in db_tools called BraidSQL. +
   This API is generic SQL, it does not know about Braid concepts
@@ -219,7 +223,8 @@ The various functions return output in a format which places state into a runnin
 * We constantly check the DB connection because this is useful when
   running workflows
 
-== Tools
+Tools
+=====
 
 bin/braid-db-create::
 Creates a DB based on the structure in braid-db.sql
@@ -227,7 +232,8 @@ Creates a DB based on the structure in braid-db.sql
 bin/braid-db-print::
 Print the DB to text
 
-== Tests
+Tests
+=====
 
 Tests are in the test/ directory.
 
