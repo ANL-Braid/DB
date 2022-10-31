@@ -1,2 +1,0 @@
-
-Stub in RST format
