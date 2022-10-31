@@ -11,7 +11,7 @@ Welcome to Braid-DB's documentation!
    :caption: Contents:
 
 Overview
-========
+--------
 
 * Embrace automation in data analysis, retention, decision-making
 * Enable users to trace back to how decisions were made
@@ -22,159 +22,163 @@ Overview
    * Models are constantly updated (track past decisions and allow updates)
 * Integrate with other Braid components
 
-== Architecture
+Architecture
+------------
 
 :imagesdir: https://github.com/ANL-Braid/DB/raw/main/img
 
-=== Conceptual architecture
+Conceptual architecture
+~~~~~~~~~~~~~~~~~~~~~~~
 
-image::conceptual-architecture.png[]
+.. image:: images/conceptual-architecture.png
 
-=== Software block diagram
+Software block diagram
+~~~~~~~~~~~~~~~~~~~~~~
 
 image::block-diagram.png[]
 
-== Use cases
+Use cases
+---------
 
-=== SLAC workflow
+SLAC workflow
+~~~~~~~~~~~~~
 
-==== Goals
+**Goals**
 
-. Perform data reduction at the edge
-. Train models on specific characteristics of experiment-specific data
+1. Perform data reduction at the edge
+2. Train models on specific characteristics of experiment-specific data
 
-==== Workflow
+**Workflow**
 
-. Scientist configures experiment parameters
-. Workflow launches simulations with experiment parameters
-. Complete simulations by time experiment data collection is complete
-. Train model on simulation and experiment data
-. Run model on an FPGA to perform data reduction in production
+1. Scientist configures experiment parameters
+2. Workflow launches simulations with experiment parameters
+3. Complete simulations by time experiment data collection is complete
+4. Train model on simulation and experiment data
+5. Run model on an FPGA to perform data reduction in production
 
-==== Provenance records
-
-===== Notes
+**Notes**
 
 * Everything has typical metadata like timestamps
 * Records can be updated
-** Not immutable history like most provenance data
-** Old versions can be recovered and used
+   * Not immutable history like most provenance data
+   * Old versions can be recovered and used
 
-===== Records
+**Records**
 
-. Experimental configurations (independent?)
-. Experiment outputs
-. Other simulation inputs?
-.. Software version, configuration?
-. Simulation outputs
-. Training data ingest
-. Inference outputs (statements)
-.. Could be in the form of tests
-.. Like a super-Jenkins
+1. Experimental configurations (independent?)
+2. Experiment outputs
+3. Other simulation inputs?
+   1. Software version, configuration?
+4. Simulation outputs
+5. Training data ingest
+6. Inference outputs (statements)
+   1. Could be in the form of tests
+   2. Like a super-Jenkins
 
-=== BraggNN workflow
+BraggNN workflow
+~~~~~~~~~~~~~~~~
 
-==== Goals
+**Goals**
 
-. Improve peak finding
-. Train model to represent Bragg peaks
+1. Improve peak finding
+2. Train model to represent Bragg peaks
 
-==== Workflow
+**Workflow**
 
-. Scientist configures experiment parameters
-. APS collects raw scattering data
-. Run peak finding on raw data, label peaks
-. Train model on peaks to represent raw data
-. Reproduce and save peak locations
+1. Scientist configures experiment parameters
+2. APS collects raw scattering data
+3. Run peak finding on raw data, label peaks
+4. Train model on peaks to represent raw data
+5. Reproduce and save peak locations
 
-==== Provenance records
+**Notes**
 
-===== Notes
+1. Everything has typical metadata like timestamps
 
-* Everything has typical metadata like timestamps
+**Records**
 
-===== Records
+1. Experimental configurations (independent?)
+2. Experiment outputs
+3. Derived peak locations
+4. Models trained, checkpoints, etc.
+5. Inferred peak locations from trained model
 
-. Experimental configurations (independent?)
-. Experiment outputs
-. Derived peak locations
-. Models trained, checkpoints, etc.
-. Inferred peak locations from trained model
+SSX
+~~~
 
-=== SSX
+**Goals**
 
-==== Goals
+1. Track the provenance of SSX crystal structures
 
-. Track the provenance of SSX crystal structures
+**Workflow**
 
-==== Workflow
+1. Scientists create a beamline.json and process.phil file
+2. Analysis is performed on the input data using these configs to create int files
+3. The int files are used with a prime.phil file to create a structure
 
-. Scientists create a beamline.json and process.phil file
-. Analysis is performed on the input data using these configs to create int files
-. The int files are used with a prime.phil file to create a structure
+**Notes**
 
-==== Provenance records
+1. Structures can come from multiple experiments. This is defined by an intlist in the prime.phil file.
 
-===== Notes
+**Records**
 
-. Structures can come from multiple experiments. This is defined by an intlist in the prime.phil file.
+1. Experimental config files (phil, beamline.json)
+2. Analysis results (int files)
+3. Derived structure
 
-===== Records
+CTSegNet
+~~~~~~~~
 
-. Experimental config files (phil, beamline.json)
-. Analysis results (int files)
-. Derived structure
+**Goals**
 
-=== CTSegNet
+1. Track the history of various U-Net-like models used for trial-and-error image segmentation
 
-==== Goals
-
-. Track the history of various U-Net-like models used for trial-and-error image segmentation
-
-==== Workflow
+**Workflow**
 
 https://raw.githubusercontent.com/aniketkt/CTSegNet/master/notebooks/CTSegNet_continuouslearning.png[Diagram]
 
-. A tomo scan is obtained
-. Perform image processing, contrast adjustment, etc.
-. Apply (labeling) "masks"
-. Run ensemble models in inference mode
-. Get new segmentations
-. Aggregate segmentation results
-. Re-train models and loop...
+1. A tomo scan is obtained
+2. Perform image processing, contrast adjustment, etc.
+3. Apply (labeling) "masks"
+4. Run ensemble models in inference mode
+5. Get new segmentations
+6. Aggregate segmentation results
+7. Re-train models and loop...
 
-==== Provenance notes
+**Provenance notes**
 
-. Models are trained on inferences of previous models
-. Provenance queries:
-.. "What data was used to train this model?"
-. Refer to TomoBank IDs for data identification scheme
-. Need rich metadata for search
+1. Models are trained on inferences of previous models
+2. Provenance queries:
+   1. "What data was used to train this model?"
+3. Refer to TomoBank IDs for data identification scheme
+4. Need rich metadata for search
 
-=== Samarakoon/Osborn
+Samarakoon/Osborn
+~~~~~~~~~~~~~~~~~
 
-==== Goals
+**Goals**
 
-. Fit simulated crystal structure to scattering data
+1. Fit simulated crystal structure to scattering data
 
-==== Workflow
+**Workflow**
 
-. Obtain neutron scattering data
-. Apply auto-encoder to identify important features
-. Apply dimensionality reduction
-. Fit to data
+1. Obtain neutron scattering data
+2. Apply auto-encoder to identify important features
+3. Apply dimensionality reduction
+4. Fit to data
 
-== Getting started
+Getting started
+---------------
 
 Note: Additional docs forthcoming to help get setup in a (mini)conda based environment.
 
-* Start by installing poetry via pip or
+1. Start by installing poetry via pip or
 https://python-poetry.org/docs/#osx--linux--bashonwindows-install-instructions
 
-* Then, run `poetry install` to setup a local virtual environment from which to run other applications
-* Run, `poetry run pre-commit install` to setup pre-commit hooks for code formatting, lining, etc.
-* Tests can be run using scripts in the `test` directory.
-* Unit tests can be run with the command `poetry run pytest pytests/` which will run the pytest test driver from the current virtual environment on all then tests defined in the `pytests` directory.
+2. Then, run `poetry install` to setup a local virtual environment from which to run other applications
+3. Run, `poetry run pre-commit install` to setup pre-commit hooks for code formatting, lining, etc.
+4. Tests can be run using scripts in the `test` directory.
+5. Unit tests can be run with the command `poetry run pytest pytests/` which will run the pytest test driver from the current virtual environment on all then tests defined in the `pytests` directory.
 
 Working with FuncX
 ==================
