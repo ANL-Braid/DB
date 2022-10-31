@@ -26,8 +26,8 @@ invalidate-record = "braid_db.tools.record_invalidate:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-mpi4py = "^3.1.3"
-sqlmodel = "^0.0.6"
+# mpi4py = "^3.1.3"
+sqlmodel = "^0"
 simpleeval = "^0.9"
 SQLAlchemy = "1.4.35"
 funcx = "^1"
@@ -35,7 +35,7 @@ funcx-endpoint = "^1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6"
-pre-commit = "^2.17.0"
+pre-commit = "^2"
 isort = "^5.10.1"
 importmagic = "^0.1.7"
 epc = "^0.0.5"
