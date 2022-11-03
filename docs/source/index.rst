@@ -30,12 +30,12 @@ Architecture
 Conceptual architecture
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: images/conceptual-architecture.png
+.. image:: https://github.com/ANL-Braid/DB/raw/main/img/conceptual-architecture.png
 
 Software block diagram
 ~~~~~~~~~~~~~~~~~~~~~~
 
-image::block-diagram.png[]
+.. image:: https://github.com/ANL-Braid/DB/raw/main/img/block-diagram.png
 
 Use cases
 ---------
