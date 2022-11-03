@@ -25,8 +25,6 @@ Overview
 Architecture
 ------------
 
-:imagesdir: https://github.com/ANL-Braid/DB/raw/main/img
-
 Conceptual architecture
 ~~~~~~~~~~~~~~~~~~~~~~~
 
