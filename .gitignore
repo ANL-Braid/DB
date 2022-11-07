@@ -7,3 +7,5 @@
 dev-scratch/
 # Tool scratch stuff
 .ropeproject/
+
+docs/build
