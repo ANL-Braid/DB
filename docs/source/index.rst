@@ -9,6 +9,7 @@ Welcome to Braid-DB's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   index
 
 Overview
 ========
