@@ -120,7 +120,18 @@ Tests are run nightly at:
 
 They are also run via Github Actions for each push or pull request against the origin repo.
 
+Troubleshooting
+===============
 
+* Python package `cryptography` may require a Rust compiler.  This could cause `poetry install` to fail while installing `cryptography`.
+
+Site-specific Tips
+==================
+
+Summit
+------
+
+* Load module `rust/1.60.0`
 
 
 Indices and tables
