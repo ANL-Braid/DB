@@ -39,31 +39,59 @@ Software block diagram
 Getting started
 ===============
 
-Note: Additional docs forthcoming to help get setup in a (mini)conda based environment.
+The Braid-DB is usable as a library within other projects, or via FuncX for remote invocation from various locations. Typically, library usage will be the primary method of using Braid-DB unless there are specific requirements for accessing the Braid-DB state remotely.
 
-1. Start by installing poetry via pip or
-https://python-poetry.org/docs/#osx--linux--bashonwindows-install-instructions
+Installing Braid-DB into a Python environment
+---------------------------------------------
 
-2. Then, run `poetry install` to setup a local virtual environment from which to run other applications
-3. Run, `poetry run pre-commit install` to setup pre-commit hooks for code formatting, lining, etc.
-4. Tests can be run using scripts in the `test` directory.
-5. Unit tests can be run with the command `poetry run pytest pytests/` which will run the pytest test driver from the current virtual environment on all then tests defined in the `pytests` directory.
+There are a variety of methods of including Python libraries into your development or run-time environment based on various tooling. We include examples for various tooling here. In all cases, the code will be pulled directly from the Braid-DB github repository as there is not, at time of writing, a method of pulling from common repositories such as PyPi. Regardless of the method of installing, the Braid-DB *requires at least Python 3.9*.
+
+Pip
+~~~
+
+Using pip, the Braid-DB can be installed from the command line as::
+
+    pip install git+https://github.com/ANL-Braid/DB
+
+Alternately, deployment can be added to a `requirements.txt` file as simply::
+
+    git+https://github.com/ANL-Braid/DB
+
+If this line appears in a `requirements.txt` file, it can be installed via::
+
+    pip install -r requirements.txt
+
+
+Poetry
+~~~~~~
+
+Poetry is utility for installing packages in a Python development environment / virtual environment. Dependencies are specified in the `pyproject.toml` file. Braid-DB can be added to a poetry project by running the command::
+
+    poetry add https://github.com/ANL-Braid/DB
+
+or by adding the following to the `pyproject.toml` file::
+
+    [tool.poetry.dependencies]
+    braid-db = {git = "https://github.com/ANL-Braid/DB"}
+
+Conda
+~~~~~
+
+Conda instructions are forthcoming.
 
 Working with FuncX
 ------------------
 
-Setup
-~~~~~
+FuncX is a remote function invocation mechanism. We provide methods for registering Braid-DB functions for creating and managing records via funcX invocations. This allows the Braid-DB to be centralized even when record creation is done in a distributed manner.
 
-. `pip install funcx funcx-endpoint`
+Setup and Usage
+~~~~~~~~~~~~~~~
 
+Using FuncX requires that the `funcx-endpoint` be installed in a working environment whether it is a conda, pip or otherwise installed process. For example, to install using `pip`, use the command::
 
-Usage
-~~~~~
+    pip install funcx funcx-endpoint
 
-Using FuncX requires that the `funcx-endpoint` be installed in a working environment whether it is a conda, pip or otherwise installed process.
-
-Setting up to run with funcx is a multi-step process:
+Further steps involve configuring the endpoint and deploying the functions which are invoked to create and manage records.
 
 1. Create a new funcX endpoint configured so that it can use the BraidDB library. This can be done with the shell script: `scripts/configure_funcx_endpoint.sh`. Provide one command line argument: the name of the funcx endpoint to be created/configured. If no name is provided, the endpoint will be named `braid_db`. This endpoint will be configured such that it has access to the implementation stored in the `.venv` directory of the braid db project.
 
@@ -108,17 +136,8 @@ Developer notes
 
 .. include:: use_cases.rst
 
-Tests
-=====
+.. include:: developing.rst
 
-Tests are in the test/ directory.
-
-Tests are run nightly at:
-
-* https://jenkins-ci.cels.anl.gov/job/Braid-DB-Core
-* https://jenkins-ci.cels.anl.gov/job/Braid-DB-Workflows
-
-They are also run via Github Actions for each push or pull request against the origin repo.
 
 
 
