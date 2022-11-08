@@ -9,6 +9,7 @@ Welcome to Braid-DB's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   index
 
 Overview
 ========
@@ -139,7 +140,18 @@ Developer notes
 .. include:: developing.rst
 
 
+Troubleshooting
+===============
 
+* Python package `cryptography` may require a Rust compiler.  This could cause `poetry install` to fail while installing `cryptography`.
+
+Site-specific Tips
+==================
+
+Summit
+------
+
+* Load module `rust/1.60.0`
 
 
 Indices and tables
