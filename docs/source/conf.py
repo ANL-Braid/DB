@@ -54,8 +54,8 @@ master_doc = "index"
 #
 html_title = "Braid DB"
 # html_logo = "_static/images/globus-300x300-blue.png"
-html_theme = "furo"
-# html_theme = "scrolls"
+# html_theme = "furo"
+html_theme = "scrolls"
 
 pygments_dark_style = "nord-darker"
 

@@ -8,4 +8,5 @@ dev-scratch/
 # Tool scratch stuff
 .ropeproject/
 
-docs/build
+# Sphinx built documentation
+docs/build/
