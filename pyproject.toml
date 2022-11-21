@@ -47,6 +47,9 @@ python-lsp-black = "^1"
 pylsp-rope = "^0"
 fastapi = "^0.78.0"
 
+[tool.poetry.group.dev.dependencies]
+furo = "^2022.9.29"
+
 [tool.isort]
 profile = "black"
 line_length = 79

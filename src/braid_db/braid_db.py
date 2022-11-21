@@ -77,6 +77,17 @@ class BraidDB:
         echo_sql=False,
         create_engine_kwargs: Optional[Dict] = None,
     ):
+        """TODO describe function
+
+        :param db_url:
+        :param log:
+        :param debug:
+        :param mpi:
+        :param echo_sql:
+        :param create_engine_kwargs:
+        :returns:
+
+        """
         self.db_url = db_url
         self.logger = logging.getLogger("BraidDB")
         level = logging.WARN
@@ -102,6 +113,15 @@ class BraidDB:
         echo_sql=False,
         create_engine_kwargs: Optional[Dict] = None,
     ):
+        """
+        TODO describe function
+
+        :param db_url:
+        :param echo_sql:
+        :param create_engine_kwargs:
+        :returns:
+
+        """
         try:
             if create_engine_kwargs is None:
                 create_engine_kwargs = {}
@@ -112,12 +132,20 @@ class BraidDB:
             return create_engine(SQLITE_URL_PREFIX + db_url, echo=echo_sql)
 
     def create(self):
-        """Set up the tables defined in the SQL file"""
+        """
+        Set up the tables defined in the SQL file
+
+        """
         if self.mpi and self.sql.rank != 0:
             return
         SQLModel.metadata.create_all(self.engine)
 
     def get_session(self, **kwargs) -> Session:
+        """TODO describe function
+
+        :returns:
+
+        """
         return Session(self.engine, **kwargs)
 
     def run_query(
@@ -126,6 +154,14 @@ class BraidDB:
         session: Optional[Session] = None,
         filter_func=ScalarResult.all,
     ):
+        """TODO describe function
+
+        :param stmt:
+        :param session:
+        :param filter_func:
+        :returns:
+
+        """
         func_name = filter_func.__name__
         if session is not None:
             result = session.exec(stmt)
@@ -138,11 +174,25 @@ class BraidDB:
                 return func_to_call()
 
     def query_all(self, stmt: Select, session: Optional[Session] = None):
+        """TODO describe function
+
+        :param stmt:
+        :param session:
+        :returns:
+
+        """
         return self.run_query(stmt, session=session)
 
     def query_one_or_none(
         self, stmt: Select, session: Optional[Session] = None
     ):
+        """TODO describe function
+
+        :param stmt:
+        :param session:
+        :returns:
+
+        """
         return self.run_query(
             stmt, session=session, filter_func=ScalarResult.one_or_none
         )
@@ -165,6 +215,13 @@ class BraidDB:
         model: BraidModelBase,
         session: Optional[Session] = None,
     ) -> BraidModelBase:
+        """TODO describe function
+
+        :param model:
+        :param session:
+        :returns:
+
+        """
         self.trace(f"Adding model {model} to session {str(session)}")
         if session is not None:
             session.add(model)
@@ -176,6 +233,12 @@ class BraidDB:
                 return model
 
     def print(self, session: Optional[Session] = None):
+        """TODO describe function
+
+        :param session:
+        :returns:
+
+        """
         with Session(self.engine) as session:
             records = session.exec(select(BraidRecordModel))
             for record in records:
@@ -202,7 +265,13 @@ class BraidDB:
                 print(text)
 
     def extract_tags(self, records):
-        """Append tags data to records"""
+
+        """TODO describe function
+
+        :param records:
+        :returns:
+
+        """
         tags = {}  # In case there are no records
         for record_id in list(records.keys()):
             tags = self.get_tags(record_id)
@@ -223,7 +292,17 @@ class BraidDB:
     ) -> Iterable[BraidRecordModel]:
         """
         Return list of predecessor records in the derivation hierarchy of a
-                record based on its id"""
+        record based on its id
+
+        :param record_id: The id of the BraidDB record to search for
+            predecessors from
+
+        :param session: An open SQLModel session object. If none is provided,
+            a temporary session will be created for only this database
+            operation.
+
+        """
+
         self.trace(f"DB.get_predecssors({record_id}) ...")
         predecessors = self.query_all(
             select(BraidDerivationModel).where(
@@ -249,6 +328,7 @@ class BraidDB:
     def get_derivations(
         self, record_id, session: Optional[Session] = None
     ) -> Iterable[BraidRecordModel]:
+
         """
         Return list of derived records of a record based on its id
         """
