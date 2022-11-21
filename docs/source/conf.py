@@ -53,9 +53,9 @@ master_doc = "index"
 # a list of builtin themes.
 #
 html_title = "Braid DB"
-# html_logo = "_static/images/globus-300x300-blue.png"
-# html_theme = "furo"
-html_theme = "scrolls"
+html_logo = "_static/BraidLogo.png"
+html_theme = "furo"
+# html_theme = "scrolls"
 
 pygments_dark_style = "nord-darker"
 
