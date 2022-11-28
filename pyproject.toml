@@ -49,6 +49,7 @@ fastapi = "^0.78.0"
 
 [tool.poetry.group.dev.dependencies]
 furo = "^2022.9.29"
+sphinx-copybutton = "^0.5.1"
 
 [tool.isort]
 profile = "black"

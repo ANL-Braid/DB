@@ -34,6 +34,7 @@ release = "0.1"
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -54,10 +55,11 @@ master_doc = "index"
 #
 html_title = "Braid DB"
 html_logo = "_static/BraidLogo.png"
-# html_theme = "furo"
-html_theme = "scrolls"
+html_theme = "furo"
+# html_theme = "scrolls"
 
-pygments_dark_style = "nord-darker"
+pygments_dark_style = "monokai"
+# pygments_dark_style = "nord-darker"
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -65,4 +67,4 @@ pygments_dark_style = "nord-darker"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-navigation_depth = 2
+# navigation_depth = 2
