@@ -14,12 +14,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../../src/"))
-autodoc_mock_imports = [
-    "sqlalchemy",
-    "sqlmodel",
-    ".models",
-    ".gen_tools",
-]
+autodoc_mock_imports = []
 
 autodoc_typehints = "description"
 
