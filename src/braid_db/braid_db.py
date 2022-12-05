@@ -113,14 +113,21 @@ class BraidDB:
         echo_sql=False,
         create_engine_kwargs: Optional[Dict] = None,
     ):
-        """
-        TODO describe function
+        """Create an SQLModel engine object for communicating with the
+        database. End-users should typically not make use of this method and,
+        instead, should use the get_session method to instantiate a particular
+        session object for (transactional) operations on the database.
 
-        :param db_url:
-        :param echo_sql:
-        :param create_engine_kwargs:
-        :returns:
+        :param db_url: An SQLModel compatible url for connecting to the
+        database.
+        :param echo_sql: A flag indicating whether operations on the database
+        should be echoed to standard output of the process running the
+        operation. Typically only useful for debugging.
+        :param create_engine_kwargs: Additional SQLModel compatible arguments
+        to be passed to the create engine operation.
 
+        :returns: An SQLModel "engine" which is used connect to and perform
+        operations on the database.
         """
         try:
             if create_engine_kwargs is None:
@@ -134,17 +141,25 @@ class BraidDB:
     def create(self):
         """
         Set up the tables defined in the SQL file
-
         """
         if self.mpi and self.sql.rank != 0:
             return
         SQLModel.metadata.create_all(self.engine)
 
     def get_session(self, **kwargs) -> Session:
-        """TODO describe function
+        """
+        Returns an SQLModel Session object which can be thought of as an
+        open transaction. Note that all other methods that perform DB
+        operations take a Session as an optional parameter. The session for
+        these methods can be created using this method. When the session is
+        provided, the operations will be performed within a DB transaction and
+        the session.commit() method must be used to persist the set of
+        operations performed via the session. Note that if no session is passed
+        to the other methods, those methods will perform their DB operations
+        under a local session and will commit the results.
 
-        :returns:
-
+        :returns: An SQLModel Session object that may be passed to other
+        methods of the BraidDB class.
         """
         return Session(self.engine, **kwargs)
 
