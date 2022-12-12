@@ -12,3 +12,9 @@ Use 'poetry run make html' here to build.
 READ THE DOCS
 
 Read The Docs will rebuild the docs, no need to commit the generated HTML.
+
+CONFIGURATION
+
+See Braid-DB/.readthedocs.yaml for settings about the build configuration.
+
+See Braid-DB/docs/source/conf.py for settings about output format.
