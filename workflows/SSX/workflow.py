@@ -48,8 +48,8 @@ for x in range(10):
     name = f"int-0-{number}-{x}"
     expt = BraidData(db=DB, name=name)
     expt.store()
-    expt.add_dependency(cfg)
-    expt.add_dependency(phil)
+    expt.add_derivation(cfg)
+    expt.add_derivation(phil)
     uri = f"login.host:/home/user1/{name}.pickle"
     expt.add_uri(uri)
     experiments.append(expt)
@@ -58,8 +58,8 @@ for x in range(10):
 name = f"prime-{number}"
 prime = BraidData(db=DB, name=name)
 prime.store()
-prime.add_dependency(cfg)
-prime.add_dependency(phil)
+prime.add_derivation(cfg)
+prime.add_derivation(phil)
 prime_uri = f"login.host:/home/user1/{name}.phil"
 prime.add_uri(prime_uri)
 
@@ -68,8 +68,8 @@ name = f"structure-{number}"
 structure = BraidModel(db=DB, name=name)
 structure.store()
 for ex in experiments:
-    structure.add_dependency(ex)
-structure.add_dependency(prime)
+    structure.add_derivation(ex)
+structure.add_derivation(prime)
 structure_uri = f"login.host:/home/user1/{name}.mkv"
 structure.add_uri(structure_uri)
 

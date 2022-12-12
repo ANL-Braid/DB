@@ -119,7 +119,7 @@ for model_id in range(0, count_models):
     model = BraidModel(db=DB, name=name)
     models.append(model)
     model.store()
-    model.add_dependency(cfgs[model_id])
+    model.add_derivation(cfgs[model_id])
 
 # Loop over experiment cycles
 for i in range(0, count_cycles):
@@ -131,12 +131,12 @@ for i in range(0, count_cycles):
         expt.store()
         samples = random.sample(cfgs, count_cfg_deps)
         for cfg in samples:
-            expt.add_dependency(cfg)
+            expt.add_derivation(cfg)
         for k in range(0, count_uris):
             uri = "login.host:/home/user1/expt-%s.data" % digits(3)
             expt.add_uri(uri)
         for model in models:
-            model.add_dependency(expt)
+            model.add_derivation(expt)
 
 time_stop = time.time()
 if args.time:

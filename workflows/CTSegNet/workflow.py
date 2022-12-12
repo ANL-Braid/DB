@@ -39,7 +39,7 @@ cfg.add_uri(uri)
 name = f"scan-{number}"
 expt = BraidData(db=DB, name=name)
 expt.store()
-expt.add_dependency(cfg)
+expt.add_derivation(cfg)
 uri = f"login.host:/home/user1/{name}.data"
 expt.add_uri(uri)
 
@@ -51,7 +51,7 @@ for model_id in range(0, model_count):
     name = f"model-{number}-{model_id:03}"
     model = BraidModel(db=DB, name=name)
     model.store()
-    model.add_dependency(cfg)
+    model.add_derivation(cfg)
     uri = "login.host:/home/user1/%s.h5" % name
     model.add_uri(uri)
     model.add_tag("model-number", str(number), type_=BraidTagType.INTEGER)
@@ -66,14 +66,14 @@ for iteration in range(0, iterations):
     model_id = 0
     for model in models:
         logger.info(f"TRAIN: {model_id}")
-        model.add_dependency(img)
+        model.add_derivation(img)
         model_id += 1
     # Apply 3D image processing
     logger.info("PROCESS:")
     name = f"image-processed-{number}-{iteration}"
     imgp = BraidData(db=DB, name=name)
     imgp.store()
-    imgp.add_dependency(img)
+    imgp.add_derivation(img)
     # Run segmenter on each model, producing masks
     model_id = 0
     for model in models:
@@ -82,7 +82,7 @@ for iteration in range(0, iterations):
         mask = BraidData(db=DB, name=name)
         # TODO: Reload if exists
         mask.store()
-        mask.add_dependency(imgp)
+        mask.add_derivation(imgp)
         model_id += 1
     # Vote
     logger.info("VOTE:")
@@ -90,7 +90,7 @@ for iteration in range(0, iterations):
     img = BraidData(db=DB, name=name)
     img.store()
     for model in models:
-        img.add_dependency(model)
+        img.add_derivation(model)
 
 logger.info("WORKFLOW STOP")
 

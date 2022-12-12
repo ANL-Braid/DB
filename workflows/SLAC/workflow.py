@@ -34,7 +34,7 @@ cfg.add_uri(uri)
 name = "scan-%s" % number
 expt = BraidData(db=DB, name=name)
 expt.store()
-expt.add_dependency(cfg)
+expt.add_derivation(cfg)
 uri = f"login.host:/home/user1/{name}.data"
 expt.add_uri(uri)
 
@@ -43,7 +43,7 @@ expt.add_uri(uri)
 name = "sim-%s" % number
 sim = BraidData(db=DB, name=name)
 sim.store()
-sim.add_dependency(cfg)
+sim.add_derivation(cfg)
 uri1 = f"login.host:/home/user1/{name}-1.out"
 uri2 = f"login.host:/home/user1/{name}-2.out"
 sim.add_uri(uri1)
@@ -54,8 +54,8 @@ sim.add_uri(uri2)
 name = f"model-{number}"
 model = BraidModel(db=DB, name=name)
 model.store()
-model.add_dependency(expt)
-model.add_dependency(sim)
+model.add_derivation(expt)
+model.add_derivation(sim)
 uri = f"login.host:/home/user1/{name}.h5"
 model.add_uri(uri)
 
