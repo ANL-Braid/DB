@@ -9,4 +9,4 @@ dev-scratch/
 .ropeproject/
 
 # Sphinx built documentation
-docs/build/
+docs/build/*

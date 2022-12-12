@@ -77,15 +77,30 @@ class BraidDB:
         echo_sql=False,
         create_engine_kwargs: Optional[Dict] = None,
     ):
-        """TODO describe function
+        """Initialze a new BraidDB object. All parameters are used for
+        connecting to and establishing communication with a
+        database. Underlying operations are performed using the SQLModel tool,
+        so many parameters take a form to be compatible with SQLModel.
 
-        :param db_url:
-        :param log:
-        :param debug:
-        :param mpi:
-        :param echo_sql:
-        :param create_engine_kwargs:
-        :returns:
+        :param db_url: An SQLModel compatible url for connecting to the
+            database.
+
+        :param log: boolean indicating whether informational logging should be
+            performed.
+
+        :param debug: boolean indicating whether debug logging should be
+            performed.
+
+        :param mpi: (Not presently implemented) boolean whether processes
+            should communicate via MPI with all database operations performed
+            by the rank 0 process.
+
+        :param echo_sql: boolean indicating whether SQL operations performed on
+            the database should be output to standard output. Useful primarily
+            for debugging the BraidDB library.
+
+        :param create_engine_kwargs: Additional SQLModel compatible arguments
+            to be passed to the create engine operation.
 
         """
         self.db_url = db_url
@@ -119,15 +134,18 @@ class BraidDB:
         session object for (transactional) operations on the database.
 
         :param db_url: An SQLModel compatible url for connecting to the
-        database.
+            database.
+
         :param echo_sql: A flag indicating whether operations on the database
-        should be echoed to standard output of the process running the
-        operation. Typically only useful for debugging.
+            should be echoed to standard output of the process running the
+            operation. Typically only useful for debugging.
+
         :param create_engine_kwargs: Additional SQLModel compatible arguments
-        to be passed to the create engine operation.
+            to be passed to the create engine operation.
 
         :returns: An SQLModel "engine" which is used connect to and perform
-        operations on the database.
+            operations on the database.
+
         """
         try:
             if create_engine_kwargs is None:
@@ -139,8 +157,10 @@ class BraidDB:
             return create_engine(SQLITE_URL_PREFIX + db_url, echo=echo_sql)
 
     def create(self):
-        """
-        Set up the tables defined in the SQL file
+        """Create the DB tables used by the BraidDB. This should typically
+        only be run one time as it may cause data to be deleted in some cases
+        if called on a database containing data already.
+
         """
         if self.mpi and self.sql.rank != 0:
             return
@@ -169,12 +189,19 @@ class BraidDB:
         session: Optional[Session] = None,
         filter_func=ScalarResult.all,
     ):
-        """TODO describe function
+        """Internal function for executing SQL statements against the
+        DB. Typically should not be called by end-users.
 
-        :param stmt:
-        :param session:
-        :param filter_func:
-        :returns:
+        :param stmt: The SQLModel Select statement to be executed.
+
+        :param session: The SQLModel session to use when running the query. If
+            session is None, a new session will be created for this single
+            operation.
+
+        :param filter_func: The filtering function (e.g. one_or_none) for
+            returning results. Returning all results is the default.
+
+        :returns: Results from the query as defined by the filter_func
 
         """
         func_name = filter_func.__name__
@@ -189,11 +216,15 @@ class BraidDB:
                 return func_to_call()
 
     def query_all(self, stmt: Select, session: Optional[Session] = None):
-        """TODO describe function
+        """Return all results from an SQLModel query
 
-        :param stmt:
-        :param session:
-        :returns:
+        :param stmt: The SQLModel Select statement to be executed.
+
+        :param session: The SQLModel session to use when running the query. If
+            session is None, a new session will be created for this single
+            operation.
+
+        :returns: An iterable of SQLModel model objects satsifying the query.
 
         """
         return self.run_query(stmt, session=session)
@@ -201,11 +232,17 @@ class BraidDB:
     def query_one_or_none(
         self, stmt: Select, session: Optional[Session] = None
     ):
-        """TODO describe function
+        """Return a single result from a query, of None if no rows satisfy the
+        query.
 
-        :param stmt:
-        :param session:
-        :returns:
+        :param stmt: The SQLModel Select statement to be executed.
+
+        :param session: The SQLModel session to use when running the query. If
+            session is None, a new session will be created for this single
+            operation.
+
+        :returns: A single SQLModel model object satsifying the query or None
+        if no rows match the query.
 
         """
         return self.run_query(
@@ -215,6 +252,21 @@ class BraidDB:
     def get_record_model_by_id(
         self, record_id: int, session: Optional[Session] = None
     ) -> Optional[BraidRecordModel]:
+        """Retrieve a single record from the database. This returns the
+        internally used model object. End-users should typically not use this
+        method, but instead should use the BraidRecord.by_record_id() class
+        method providing this BraidDB object as a parameter.
+
+        :param record_id: The id of the record to be retrieved.
+
+        :param session: The SQLModel session to use when running the query. If
+            session is None, a new session will be created for this single
+            operation.
+
+        :returns: An instance of the SQLModel for the record if it exists in
+            the DB.
+
+        """
         return self.query_one_or_none(
             select(BraidRecordModel).where(
                 BraidRecordModel.record_id == record_id
@@ -230,11 +282,17 @@ class BraidDB:
         model: BraidModelBase,
         session: Optional[Session] = None,
     ) -> BraidModelBase:
-        """TODO describe function
+        """Add an entry into the DB using the SQLModel rendering of a
+        record. Typically, end-users will use BraidRecord rather than the
+        SQLModel reorientation, so this will not usually be needed by users.
 
-        :param model:
-        :param session:
-        :returns:
+        :param model: The SQLModel object to be added
+
+        :param session: The SQLModel session to use when running the query. If
+            session is None, a new session will be created for this single
+            operation.
+
+        :returns: The same BraidModel passed as input
 
         """
         self.trace(f"Adding model {model} to session {str(session)}")
@@ -248,7 +306,7 @@ class BraidDB:
                 return model
 
     def print(self, session: Optional[Session] = None):
-        """TODO describe function
+        """
 
         :param session:
         :returns:
