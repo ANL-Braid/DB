@@ -135,11 +135,9 @@ class BraidDB:
 
         :param db_url: An SQLModel compatible url for connecting to the
             database.
-
         :param echo_sql: A flag indicating whether operations on the database
             should be echoed to standard output of the process running the
             operation. Typically only useful for debugging.
-
         :param create_engine_kwargs: Additional SQLModel compatible arguments
             to be passed to the create engine operation.
 
@@ -636,8 +634,13 @@ class BraidRecord:
         type_=BraidTagType.STRING,
         session: Optional[Session] = None,
     ) -> int:
-        """key:   a string key name
-        value: a string value
+        """
+        Add a key/value tag to this BraidRecord.
+
+        :param key:   a string key name
+        :param value: a string value
+
+        :returns: The tag ID.
         """
         if not isinstance(type_, BraidTagType):
             raise Exception(
