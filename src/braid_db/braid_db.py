@@ -634,8 +634,12 @@ class BraidRecord:
         type_=BraidTagType.STRING,
         session: Optional[Session] = None,
     ) -> int:
-        """key:   a string key name
-        value: a string value
+        """
+        Add a key/value tag to this BraidRecord.
+
+        :param key:   a string key name
+        :param value: a string value
+
         :returns: The tag ID.
         """
         if not isinstance(type_, BraidTagType):
