@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "The Braid Project Provenance DB"
 authors = ["Justin Wozniak <woz@anl.gov>",
           "Jim Pruyne <pruyne@uchicago.edu>"]
+license = "Apache-2.0"
+readme = "README.adoc"
+documentation = "https://braid-db.readthedocs.io/en/main/"
+repository = "https://github.com/ANL-Braid/DB"
 
 packages = [
          {include = "braid_db", from="src"},

@@ -10,3 +10,6 @@ dev-scratch/
 
 # Sphinx built documentation
 docs/build
+
+# Local build directory
+dist/
