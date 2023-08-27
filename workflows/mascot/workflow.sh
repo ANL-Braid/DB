@@ -26,6 +26,8 @@ export PYTHONPATH=$BRAID_HOME/src
 
 DB=braid-mascot.db
 
-$BRAID_HOME/bin/braid-db-create -v $BACKUP $DB
+#$BRAID_HOME/bin/braid-db-create -v $BACKUP $DB
+
+poetry run db-create -v $BACKUP $DB
 
 python3 $BRAID_HOME/workflows/mascot/workflow.py $*

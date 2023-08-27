@@ -341,7 +341,6 @@ class BraidDB:
                 print(text)
 
     def extract_tags(self, records):
-
         """TODO describe function
 
         :param records:
@@ -405,7 +404,6 @@ class BraidDB:
     def get_derivations(
         self, record_id, session: Optional[Session] = None
     ) -> Iterable[BraidRecordModel]:
-
         """Get a list of SQLModel records that are derived from the record
         based on the record id.
 
@@ -714,7 +712,6 @@ class BraidRecord:
 
     @property
     def record_id(self) -> Optional[int]:
-
         if self.model.record_id is None:
             if self.db is not None:
                 self.db.add_model(self.model)

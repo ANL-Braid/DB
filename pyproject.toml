@@ -34,12 +34,11 @@ python = "^3.9"
 sqlmodel = "^0"
 simpleeval = "^0.9"
 SQLAlchemy = "1.4.35"
-funcx = "^1"
-funcx-endpoint = "^1"
+# funcx = "^1"
+# funcx-endpoint = "^1"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^6"
-pre-commit = "^2"
 isort = "^5.10.1"
 importmagic = "^0.1.7"
 epc = "^0.0.5"
@@ -50,10 +49,9 @@ pyls-isort = "^0"
 python-lsp-black = "^1"
 pylsp-rope = "^0"
 fastapi = "^0.78.0"
-
-[tool.poetry.group.dev.dependencies]
 furo = "^2022.9.29"
 sphinx-copybutton = "^0.5.1"
+pre-commit = "^3"
 
 [tool.isort]
 profile = "black"
